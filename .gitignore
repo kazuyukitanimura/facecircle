@@ -1,0 +1,6 @@
+.DS_Store
+xcuserdata
+xcshareddata
+*.swp
+node_modules
+Secret.swift
