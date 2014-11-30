@@ -8,16 +8,16 @@
 
 import UIKit
 import AVFoundation
-import AssetsLibrary
 
-class ViewController: UIViewController, AVCaptureFileOutputRecordingDelegate {
+class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate {
   
-  var captureSession: AVCaptureSession!
+  let captureSession = AVCaptureSession()
   var captureDevice: AVCaptureDevice?
-  var videoOutput: AVCaptureMovieFileOutput!
   var startButton: UIButton!
   var stopButton: UIButton!
-  var videoLayer: AVCaptureVideoPreviewLayer!
+  let videoDataOutput = AVCaptureVideoDataOutput()
+  let imageView = UIImageView()
+  let face = Face()
   
   let UIInterface2VideoOrientation: [UIInterfaceOrientation: AVCaptureVideoOrientation] = [
     .Portrait: .Portrait,
@@ -29,8 +29,6 @@ class ViewController: UIViewController, AVCaptureFileOutputRecordingDelegate {
   override func viewDidLoad() {
     super.viewDidLoad()
 
-    // create a session
-    captureSession = AVCaptureSession()
     // get all devices
     let devices = AVCaptureDevice.devices()
     // get front camera
@@ -51,13 +49,20 @@ class ViewController: UIViewController, AVCaptureFileOutputRecordingDelegate {
     let audioCaptureDevice = AVCaptureDevice.devicesWithMediaType(AVMediaTypeAudio)
     let audioInput = AVCaptureDeviceInput.deviceInputWithDevice(audioCaptureDevice[0] as AVCaptureDevice, error: nil) as AVCaptureDeviceInput
     captureSession.addInput(audioInput)
-    // set video output
-    videoOutput = AVCaptureMovieFileOutput()
-    captureSession.addOutput(videoOutput)
-    // create a layer for video
-    videoLayer = AVCaptureVideoPreviewLayer.layerWithSession(captureSession) as AVCaptureVideoPreviewLayer
-    videoLayer.videoGravity = AVLayerVideoGravityResizeAspectFill
-    self.view.layer.addSublayer(videoLayer)
+
+    // set video data output
+    videoDataOutput.videoSettings = [ kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ]
+    // ignore delayed frames
+    videoDataOutput.alwaysDiscardsLateVideoFrames = true
+    // set up delegate
+    let queue: dispatch_queue_t = dispatch_queue_create("frame.queue",  nil)
+    videoDataOutput.setSampleBufferDelegate(self, queue: queue)
+    captureSession.addOutput(videoDataOutput)
+
+    // create a layer for imageView
+    imageView.contentMode = .ScaleAspectFill
+    self.view.addSubview(imageView)
+
     // start the session
     captureSession.startRunning()
     // set up the UI
@@ -67,8 +72,8 @@ class ViewController: UIViewController, AVCaptureFileOutputRecordingDelegate {
     stopButton.backgroundColor = UIColor.grayColor();
     startButton.layer.masksToBounds = true
     stopButton.layer.masksToBounds = true
-    startButton.setTitle("START", forState: .Normal)
-    stopButton.setTitle("STOP", forState: .Normal)
+    startButton.setTitle("END", forState: .Normal)
+    stopButton.setTitle("MUTE", forState: .Normal)
     startButton.layer.cornerRadius = 20.0
     stopButton.layer.cornerRadius = 20.0
     startButton.addTarget(self, action: "onClickButton:", forControlEvents: .TouchUpInside)
@@ -77,32 +82,41 @@ class ViewController: UIViewController, AVCaptureFileOutputRecordingDelegate {
     self.view.addSubview(stopButton)
     resetPosition(interfaceOrientation)
   }
-  
+
   func onClickButton(sender: UIButton) {
     if (sender == startButton) {
-      let paths = NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)
-      let documentsDirectory = paths[0] as String
-      let filePath = "\(documentsDirectory)/test.mp4"
-      let fileURL = NSURL(fileURLWithPath: filePath)!
-      
-      videoOutput.startRecordingToOutputFileURL(fileURL, recordingDelegate: self)
     } else if (sender == stopButton) {
-      videoOutput.stopRecording()
     }
   }
-  
+
   func resetPosition(toInterfaceOrientation: UIInterfaceOrientation) {
     startButton.layer.position = CGPoint(x: self.view.bounds.width/2 - 70, y:self.view.bounds.height-50)
     stopButton.layer.position = CGPoint(x: self.view.bounds.width/2 + 70, y:self.view.bounds.height-50)
-    videoLayer.connection.videoOrientation = UIInterface2VideoOrientation[toInterfaceOrientation] ?? .Portrait
-    videoLayer.frame = self.view.bounds
+    for connection in videoDataOutput.connections {
+      if let conn = connection as? AVCaptureConnection {
+        if (conn.supportsVideoOrientation) {
+          conn.videoOrientation = UIInterface2VideoOrientation[toInterfaceOrientation] ?? .Portrait
+        }
+      }
+    }
+    imageView.frame = self.view.bounds
+  }
+  
+  func captureOutput(captureOutput: AVCaptureOutput!, didOutputSampleBuffer sampleBuffer: CMSampleBuffer!, fromConnection connection: AVCaptureConnection!) {
+    dispatch_async(dispatch_get_main_queue(), {
+      self.imageView.image = self.face.processFace(sampleBuffer)
+    })
+  }
+  
+  override func willAnimateRotationToInterfaceOrientation(toInterfaceOrientation: UIInterfaceOrientation, duration: NSTimeInterval) {
+    resetPosition(toInterfaceOrientation)
   }
   
   /*
   override func shouldAutorotate() -> Bool {
     return true
   }
-  
+
   override func supportedInterfaceOrientations() -> Int {
     if UIDevice.currentDevice().userInterfaceIdiom == .Phone {
       return Int(UIInterfaceOrientationMask.AllButUpsideDown.rawValue)
@@ -110,24 +124,15 @@ class ViewController: UIViewController, AVCaptureFileOutputRecordingDelegate {
       return Int(UIInterfaceOrientationMask.All.rawValue)
     }
   }
-  */
-  
-  override func willAnimateRotationToInterfaceOrientation(toInterfaceOrientation: UIInterfaceOrientation, duration: NSTimeInterval) {
-    resetPosition(toInterfaceOrientation)
-  }
 
   func captureOutput(captureOutput: AVCaptureFileOutput!, didFinishRecordingToOutputFileAtURL outputFileURL: NSURL!, fromConnections connections: [AnyObject]!, error: NSError!) {
     println("didFinishRecordingToOutputFileAtURL")
-    // create AssetsLibrary
-    let assetsLib = ALAssetsLibrary()
-    
-    // save video
-    assetsLib.writeVideoAtPathToSavedPhotosAlbum(outputFileURL, completionBlock: nil)
   }
-  
+
   func captureOutput(captureOutput: AVCaptureFileOutput!, didStartRecordingToOutputFileAtURL fileURL: NSURL!, fromConnections connections: [AnyObject]!) {
     println("didStartRecordingToOutputFileAtURL")
   }
+  */
 
   override func didReceiveMemoryWarning() {
     super.didReceiveMemoryWarning()
