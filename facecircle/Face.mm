@@ -87,18 +87,30 @@
     cv::circle(mat, center, radius, cv::Scalar(255,255,255), 3, 8, 0 );
   }
 
+  cv::Mat tmpMat = mat;
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
-    int offsetx = (mat.cols - r.width) * 0.5 - r.x;
-    int offsety = (mat.rows - r.height) * 0.5 - r.y;
-    [self shiftImage:mat x:offsetx y:offsety];
+
+    // crop
+    int newHeight = r.width * 3; // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
+    int newY = r.y - (newHeight - r.height) * 0.5;
+    if (newY < 0) {
+      newHeight += newY * 2;
+      newY = 0;
+    }
+    if (newY + newHeight > mat.rows) {
+      int overshoot = newY + newHeight - mat.rows;
+      newHeight -= overshoot * 2;
+      newY += overshoot;
+    }
+    tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
   }
 
-  cv::Mat mirror;
-  cv::flip(mat, mirror, 1);
+  // flip the preview
+  cv::flip(tmpMat, mat, 1);
 
   // convert mat to UIImage
-  return MatToUIImage(mirror);
+  return MatToUIImage(mat);
 }
 
 @end

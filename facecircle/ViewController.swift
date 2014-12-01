@@ -61,7 +61,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     captureSession.addOutput(videoDataOutput)
 
     // create a layer for imageView
-    imageView.contentMode = .ScaleAspectFill
+    imageView.contentMode = .ScaleAspectFit
     self.view.addSubview(imageView)
 
     // start the session
