@@ -59,21 +59,6 @@
   CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
 
   // http://stackoverflow.com/questions/9939843/cgbitmapcontextcreate-for-cv-8uc3-to-use-in-opencv
-  /*
-  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceGray();
-  CGContextRef contextRef = CGBitmapContextCreate(mat.data,                 // Pointer to backing data
-                                                  w,                      // Width of bitmap
-                                                  h,                     // Height of bitmap
-                                                  8,                          // Bits per component
-                                                  mat.step[0],              // Bytes per row
-                                                  colorSpace,                 // Colorspace
-                                                  kCGImageAlphaNone |
-                                                  kCGBitmapByteOrderDefault); // Bitmap info flags
-
-  CGContextDrawImage(contextRef, CGRectMake(0, 0, w, h), self.CGImage);
-  CGContextRelease(contextRef);
-  CGColorSpaceRelease(colorSpace);
-  */
 }
 
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer
@@ -83,27 +68,25 @@
   [self convertYUVSampleBuffer:sampleBuffer toGrayscaleMat:mat];
 
   // detect faces
-  /*
   std::vector<cv::Rect> faces;
-  cascade.detectMultiScale(mat, faces,
-                           1.1, 2,
-                           CV_HAAR_SCALE_IMAGE,
-                           cv::Size(30, 30));
-  */
+  cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_SCALE_IMAGE, cv::Size(50, 50));
+
   // draw circles on faces
-  /*
   std::vector<cv::Rect>::const_iterator r = faces.begin();
   for(; r != faces.end(); ++r) {
     cv::Point center;
     int radius;
-    center.x = cv::saturate_cast<int>((r->x + r->width*0.5));
-    center.y = cv::saturate_cast<int>((r->y + r->height*0.5));
-    radius = cv::saturate_cast<int>((r->width + r->height));
-    cv::circle(mat, center, radius, cv::Scalar(80,80,255), 3, 8, 0 );
+    center.x = cv::saturate_cast<int>(r->x + r->width*0.5);
+    center.y = cv::saturate_cast<int>(r->y + r->height*0.5);
+    radius = cv::saturate_cast<int>(MAX(r->width, r->height) * 0.5);
+    cv::circle(mat, center, radius, cv::Scalar(255,255,255), 3, 8, 0 );
   }
-  */
+
+  cv::Mat mirror;
+  cv::flip(mat, mirror, 1);
+
   // convert mat to UIImage
-  return MatToUIImage(mat);
+  return MatToUIImage(mirror);
 }
 
 @end

@@ -29,6 +29,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
   override func viewDidLoad() {
     super.viewDidLoad()
 
+    captureSession.sessionPreset = AVCaptureSessionPresetLow
     // get all devices
     let devices = AVCaptureDevice.devices()
     // get front camera
