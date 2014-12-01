@@ -16,6 +16,7 @@
 - (id)init;
 #ifdef __cplusplus
 - (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toGrayscaleMat:(cv::Mat &)mat;
+- (void)shiftImage:(cv::Mat &)img x:(int)offsetx y:(int)offsety;
 #endif
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer;
 

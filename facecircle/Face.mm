@@ -57,8 +57,13 @@
 
   // unlock again
   CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
+}
 
-  // http://stackoverflow.com/questions/9939843/cgbitmapcontextcreate-for-cv-8uc3-to-use-in-opencv
+// http://stackoverflow.com/questions/19068085/shift-image-content-with-opencv
+- (void)shiftImage:(cv::Mat &)mat x:(int)offsetx y:(int)offsety
+{
+  cv::Mat trans_mat = (cv::Mat_<double>(2,3) << 1, 0, offsetx, 0, 1, offsety);
+  cv::warpAffine(mat,mat,trans_mat,mat.size());
 }
 
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer
@@ -80,6 +85,13 @@
     center.y = cv::saturate_cast<int>(r->y + r->height*0.5);
     radius = cv::saturate_cast<int>(MAX(r->width, r->height) * 0.5);
     cv::circle(mat, center, radius, cv::Scalar(255,255,255), 3, 8, 0 );
+  }
+
+  if (faces.size() > 0) {
+    cv::Rect r = faces[0];
+    int offsetx = (mat.cols - r.width) * 0.5 - r.x;
+    int offsety = (mat.rows - r.height) * 0.5 - r.y;
+    [self shiftImage:mat x:offsetx y:offsety];
   }
 
   cv::Mat mirror;
