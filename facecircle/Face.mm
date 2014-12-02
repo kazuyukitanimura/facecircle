@@ -68,7 +68,7 @@
 
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer
 {
-  // create grayscale
+  // create grayscale TODO: is it possible to process only updated pixels not the entire image?
   cv::Mat mat;
   [self convertYUVSampleBuffer:sampleBuffer toGrayscaleMat:mat];
 
@@ -91,7 +91,7 @@
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
 
-    // vertical shift (TODO shift after crop for performance)
+    // vertical shift TODO: shift after crop for performance
     int offsety = (mat.rows - r.height) * 0.5 - r.y;
     [self shiftImage:mat x:0 y:offsety];
 
@@ -110,7 +110,7 @@
   // flip the preview
   cv::flip(tmpMat, mat, 1);
 
-  // convert mat to UIImage
+  // convert mat to UIImage TODO: create my own MatToUIImage and add color
   return MatToUIImage(mat);
 }
 
