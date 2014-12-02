@@ -46,6 +46,17 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     // set the front camera
     let videoInput = AVCaptureDeviceInput.deviceInputWithDevice(captureDevice!, error: nil) as AVCaptureDeviceInput
     captureSession.addInput(videoInput)
+    // set FPS
+    var lockError: NSError?
+    if captureDevice!.lockForConfiguration(&lockError) {
+      if let error = lockError {
+        println("lock error: \(error.localizedDescription)")
+        return
+      } else {
+        captureDevice!.activeVideoMinFrameDuration = CMTimeMake(1, 15)
+        captureDevice!.unlockForConfiguration()
+      }
+    }
     // set microphone
     let audioCaptureDevice = AVCaptureDevice.devicesWithMediaType(AVMediaTypeAudio)
     let audioInput = AVCaptureDeviceInput.deviceInputWithDevice(audioCaptureDevice[0] as AVCaptureDevice, error: nil) as AVCaptureDeviceInput
