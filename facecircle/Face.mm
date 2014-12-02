@@ -91,17 +91,18 @@
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
 
+    // vertical shift (TODO shift after crop for performance)
+    int offsety = (mat.rows - r.height) * 0.5 - r.y;
+    [self shiftImage:mat x:0 y:offsety];
+
     // crop
-    int newHeight = r.width * 3; // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
-    int newY = r.y - (newHeight - r.height) * 0.5;
-    if (newY < 0) {
-      newHeight += newY * 2;
-      newY = 0;
-    }
-    if (newY + newHeight > mat.rows) {
-      int overshoot = newY + newHeight - mat.rows;
-      newHeight -= overshoot * 2;
-      newY += overshoot;
+    // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
+    int newHeight = r.width * 2;
+    int newY = 0;
+    if (mat.rows < newHeight) {
+      newHeight = mat.rows;
+    } else {
+      newY = (mat.rows - newHeight) * 0.5;
     }
     tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
   }
