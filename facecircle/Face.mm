@@ -74,7 +74,7 @@
 
   // detect faces
   std::vector<cv::Rect> faces;
-  cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_SCALE_IMAGE, cv::Size(50, 50));
+  cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
 
   // draw circles on faces
   std::vector<cv::Rect>::const_iterator r = faces.begin();
