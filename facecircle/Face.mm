@@ -76,17 +76,6 @@
   std::vector<cv::Rect> faces;
   cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
 
-  // draw circles on faces
-  std::vector<cv::Rect>::const_iterator r = faces.begin();
-  for(; r != faces.end(); ++r) {
-    cv::Point center;
-    int radius;
-    center.x = cv::saturate_cast<int>(r->x + r->width*0.5);
-    center.y = cv::saturate_cast<int>(r->y + r->height*0.5);
-    radius = cv::saturate_cast<int>(MAX(r->width, r->height) * 0.5);
-    cv::circle(mat, center, radius, cv::Scalar(255,255,255), 3, 8, 0 );
-  }
-
   cv::Mat tmpMat = mat;
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
@@ -107,8 +96,15 @@
     tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
   }
 
+  //cv::equalizeHist(tmpMat, tmpMat);
+  cv::adaptiveThreshold(tmpMat, mat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 3, 5);
+  //cv::threshold(tmpMat, mat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+  //cv::distanceTransform(mat, mat, CV_DIST_L2, 5);
+  //cv::medianBlur(mat, mat, 1);
+
+
   // flip the preview
-  cv::flip(tmpMat, mat, 1);
+  cv::flip(mat, mat, 1);
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
   return MatToUIImage(mat);
