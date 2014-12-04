@@ -106,19 +106,33 @@
     // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
   }
 
+
+  //cv::medianBlur(tmpMat, tmpMat, 9);
+  cv::GaussianBlur(tmpMat, tmpMat, cv::Size(3,3), 0);
+  //cv::Mat matMat;
+  //cv::bilateralFilter(tmpMat, matMat, 15, 80, 80);
+  //cv::adaptiveBilateralFilter(tmpMat, matMat, cv::Size(3,3), 15);
   //cv::equalizeHist(tmpMat, tmpMat);
   //cv::Laplacian(tmpMat, tmpMat, CV_8UC1);
-  //cv::Canny(tmpMat, mat, 200, 180);
-  //cv::Sobel(tmpMat, mat, CV_8UC1, 1, 0);
-  cv::adaptiveThreshold(tmpMat, mat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 3, 5);
-  //cv::threshold(tmpMat, mat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-  //cv::distanceTransform(mat, mat, CV_DIST_L2, 5);
-  //cv::medianBlur(mat, mat, 1);
+  //cv::Canny(tmpMat, tmpMat, 200, 180);
+  //cv::Sobel(tmpMat, tmpMat, CV_8UC1, 1, 0);
+  cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 3, 5);
+  //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+  //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
 
+  /*
+  cv::cvtColor(tmpMat, tmpMat, CV_8UC3);
+  cv::Mat fgdModel;
+  fgdModel.setTo(0);
+  cv::Mat bgdModel;
+  bgdModel.setTo(0);
+  cv::grabCut(tmpMat, tmpMat, cv::Rect(previousROI), bgdModel, fgdModel, cv::GC_INIT_WITH_MASK);
+  */
+
+  // TODO: wrap with findContours()
 
   // flip the preview
-  cv::flip(mat, mat, 1);
-  //cv::flip(tmpMat, mat, 1);
+  cv::flip(tmpMat, mat, 1);
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
   return MatToUIImage(mat);
