@@ -12,6 +12,7 @@
 @interface Face()
 {
   cv::CascadeClassifier cascade;
+  cv::Rect previousROI;
 }
 @end
 
@@ -29,6 +30,8 @@
   if (!cascade.load(cascadeName)) {
     return nil;
   }
+
+  previousROI = cv::Rect(0, 0, 0, 0);
 
   return self;
 }
@@ -93,10 +96,20 @@
     } else {
       newY = (mat.rows - newHeight) * 0.5;
     }
-    tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
+    // Simple stabilizer
+    // TODO use Kalman Filter to stablize http://nghiaho.com/?p=2093
+    previousROI.x = (r.x + previousROI.x) * 0.5;
+    previousROI.y = (newY + previousROI.x) * 0.5;
+    previousROI.width = MIN((r.width + previousROI.width) * 0.5, mat.cols - previousROI.x);
+    previousROI.height = MIN((newHeight + previousROI.height) * 0.5, mat.rows - previousROI.y);
+    tmpMat = mat(previousROI);
+    // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
   }
 
   //cv::equalizeHist(tmpMat, tmpMat);
+  //cv::Laplacian(tmpMat, tmpMat, CV_8UC1);
+  //cv::Canny(tmpMat, mat, 200, 180);
+  //cv::Sobel(tmpMat, mat, CV_8UC1, 1, 0);
   cv::adaptiveThreshold(tmpMat, mat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 3, 5);
   //cv::threshold(tmpMat, mat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::distanceTransform(mat, mat, CV_DIST_L2, 5);
@@ -105,6 +118,7 @@
 
   // flip the preview
   cv::flip(mat, mat, 1);
+  //cv::flip(tmpMat, mat, 1);
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
   return MatToUIImage(mat);

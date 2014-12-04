@@ -109,6 +109,9 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         if (conn.supportsVideoOrientation) {
           conn.videoOrientation = UIInterface2VideoOrientation[toInterfaceOrientation] ?? .Portrait
         }
+        if (conn.supportsVideoStabilization) {
+          conn.preferredVideoStabilizationMode = .Auto
+        }
       }
     }
     imageView.frame = self.view.bounds
