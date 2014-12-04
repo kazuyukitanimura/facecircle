@@ -12,7 +12,7 @@ import AVFoundation
 class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDelegate {
   
   let captureSession = AVCaptureSession()
-  var captureDevice: AVCaptureDevice?
+  var captureDevice: AVCaptureDevice!
   var startButton: UIButton!
   var stopButton: UIButton!
   let videoDataOutput = AVCaptureVideoDataOutput()
@@ -39,22 +39,31 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
       }
     }
     // return if no camera found
-    if (captureDevice == nil) {
+    if (captureDevice? == nil) {
       UIAlertView(title: "Missing Camera", message: "No camera device found", delegate: nil, cancelButtonTitle: "OK").show()
       return
     }
     // set the front camera
-    let videoInput = AVCaptureDeviceInput.deviceInputWithDevice(captureDevice!, error: nil) as AVCaptureDeviceInput
+    let videoInput = AVCaptureDeviceInput.deviceInputWithDevice(captureDevice, error: nil) as AVCaptureDeviceInput
     captureSession.addInput(videoInput)
-    // set FPS
+    // camera setup
     var lockError: NSError?
-    if captureDevice!.lockForConfiguration(&lockError) {
+    if captureDevice.lockForConfiguration(&lockError) {
       if let error = lockError {
         println("lock error: \(error.localizedDescription)")
         return
       } else {
-        captureDevice!.activeVideoMinFrameDuration = CMTimeMake(1, 15)
-        captureDevice!.unlockForConfiguration()
+        captureDevice.activeVideoMinFrameDuration = CMTimeMake(1, 15) // 15 FPS
+        if (captureDevice.autoFocusRangeRestrictionSupported) {
+          captureDevice.autoFocusRangeRestriction = .Near
+        }
+        if (captureDevice.isFocusModeSupported(.Locked)) {
+          println("lock")
+        }
+        if (captureDevice.focusPointOfInterestSupported) {
+          println("focus")
+        }
+        captureDevice.unlockForConfiguration()
       }
     }
     // set microphone
