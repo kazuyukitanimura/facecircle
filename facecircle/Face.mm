@@ -106,19 +106,40 @@
     // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
   }
 
-
   //cv::medianBlur(tmpMat, tmpMat, 9);
-  cv::GaussianBlur(tmpMat, tmpMat, cv::Size(3,3), 0);
+  //cv::GaussianBlur(tmpMat, tmpMat, cv::Size(3,3), 0);
   //cv::Mat matMat;
   //cv::bilateralFilter(tmpMat, matMat, 15, 80, 80);
   //cv::adaptiveBilateralFilter(tmpMat, matMat, cv::Size(3,3), 15);
   //cv::equalizeHist(tmpMat, tmpMat);
   //cv::Laplacian(tmpMat, tmpMat, CV_8UC1);
   //cv::Canny(tmpMat, tmpMat, 200, 180);
-  //cv::Sobel(tmpMat, tmpMat, CV_8UC1, 1, 0);
-  cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 3, 5);
+  //cv::Mat sobel_x, sobel_y;
+  //cv::Sobel(tmpMat, sobel_x, CV_8UC1, 1, 0);
+  //cv::convertScaleAbs(sobel_x, sobel_x);
+  //cv::Sobel(tmpMat, sobel_y, CV_8UC1, 0, 1);
+  //cv::convertScaleAbs(sobel_y, sobel_y);
+  //cv::addWeighted(sobel_x, 0.5, sobel_y, 0.5, 0, tmpMat);
+  //cv::Scharr(tmpMat, tmpMat, CV_8UC1, 1, 0);
+  //cv::Mat tmpMat2;
+  //cv::Sobel(tmpMat, tmpMat2, CV_8UC1, 1, 0);
+  cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 5, 5);
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
+  //int morph_size = 2;
+  //cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
+  //cv::morphologyEx(tmpMat, tmpMat, cv::MORPH_OPEN, element);
+  //cv::erode(tmpMat, tmpMat, element);
+  //cv::dilate(tmpMat, tmpMat, element);
+
+
+  // TODO: LineSegmentDetector for opencv 3.0
+  //std::vector<cv::Vec4i> lines;
+  //cv::HoughLinesP(tmpMat2, lines, 1, CV_PI/180, 100, 5, 1);
+  //for (size_t i = 0; i < lines.size(); i++) {
+  //  cv::Vec4i line = lines[i];
+  //  cv::line(tmpMat, cv::Point(line[0], line[1]), cv::Point(line[2], line[3]), cv::Scalar(128,128,128));
+  //}
 
   /*
   cv::cvtColor(tmpMat, tmpMat, CV_8UC3);
