@@ -163,13 +163,13 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   //cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 13, 13);
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
-  //int morph_size = 2;
-  //cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
-  //cv::morphologyEx(tmpMat, tmpMat, cv::MORPH_OPEN, element);
-  //cv::erode(tmpMat, tmpMat, element);
-  //cv::dilate(tmpMat, tmpMat, element);
   cv::Mat tmpMat2;
   sauvolaFast(tmpMat, tmpMat2, 11, 0.05, 100);
+  int morph_size = 1;
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
+  cv::morphologyEx(tmpMat2, tmpMat2, cv::MORPH_OPEN, element);
+  //cv::erode(tmpMat2, tmpMat2, element);
+  //cv::dilate(tmpMat2, tmpMat2, element);
   cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
   // search pixel
   int amount = seedPoint.y * 0.5;
