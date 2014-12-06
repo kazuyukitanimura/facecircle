@@ -94,7 +94,10 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
         var = 0.0;
       }
       double stddev = sqrt(var);
-      double threshold = mean * (1 + k * (stddev / r - 1));
+      //double threshold = mean * (1 + k * (stddev / r - 1));
+      double p = 2.0;
+      double q = 10.0;
+      double threshold = mean * (1 + std::pow(p, -q * mean) + k * (stddev / r - 1)); //Phansalkar
 
       if (src.at<uchar>(y, x) < threshold) {
         dst.at<uchar>(y, x) = 0;
