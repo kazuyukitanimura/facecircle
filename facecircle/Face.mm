@@ -31,7 +31,7 @@
     return nil;
   }
 
-  previousROI = cv::Rect(0, 0, 0, 0);
+  previousROI = cv::Rect(0, 0, 1, 1);
 
   return self;
 }
@@ -77,37 +77,30 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   cv::Mat srcWithBorder;
   int borderSize = kernelSize / 2 + 1;
   int kernelPixels = kernelSize * kernelSize;
-  cv::copyMakeBorder(src, srcWithBorder, borderSize, borderSize,
-                     borderSize, borderSize, cv::BORDER_REPLICATE);
+  cv::copyMakeBorder(src, srcWithBorder, borderSize, borderSize, borderSize, borderSize, cv::BORDER_REPLICATE);
 
   cv::Mat sum, sqSum;
   cv::integral(srcWithBorder, sum, sqSum);
-  for(int y = 0; y < src.rows; y++)
-  {
-    for(int x = 0; x < src.cols; x++)
-    {
+  for(int y = 0; y < src.rows; y++) {
+    for(int x = 0; x < src.cols; x++) {
       int kx = x + kernelSize;
       int ky = y + kernelSize;
-      double sumVal = sum.at<int>(ky, kx)
-      - sum.at<int>(ky, x)
-      - sum.at<int>(y, kx)
-      + sum.at<int>(y, x);
-      double sqSumVal = sqSum.at<double>(ky, kx)
-      - sqSum.at<double>(ky, x)
-      - sqSum.at<double>(y, kx)
-      + sqSum.at<double>(y, x);
+      double sumVal = sum.at<int>(ky, kx) - sum.at<int>(ky, x) - sum.at<int>(y, kx) + sum.at<int>(y, x);
+      double sqSumVal = sqSum.at<double>(ky, kx) - sqSum.at<double>(ky, x) - sqSum.at<double>(y, kx) + sqSum.at<double>(y, x);
 
       double mean = sumVal / kernelPixels;
       double var = (sqSumVal / kernelPixels) - (mean * mean);
-      if (var < 0.0)
+      if (var < 0.0) {
         var = 0.0;
+      }
       double stddev = sqrt(var);
       double threshold = mean * (1 + k * (stddev / r - 1));
 
-      if (src.at<uchar>(y, x) < threshold)
+      if (src.at<uchar>(y, x) < threshold) {
         dst.at<uchar>(y, x) = 0;
-      else
+      } else {
         dst.at<uchar>(y, x) = 255;
+      }
     }
   }
 }
@@ -178,6 +171,14 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   cv::Mat tmpMat2;
   sauvolaFast(tmpMat, tmpMat2, 11, 0.05, 100);
   cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
+  // search pixel
+  int amount = 30;
+  for (int y = -MIN(amount, seedPoint.y); y <= amount; y++) {
+    if (tmpMat2.at<uchar>(seedPoint.x, seedPoint.y + y) == 255) {
+      seedPoint.y = MIN(seedPoint.y + y, previousROI.height - 1);
+      break;
+    }
+  }
   cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
 
 
