@@ -123,7 +123,8 @@
   //cv::Scharr(tmpMat, tmpMat, CV_8UC1, 1, 0);
   //cv::Mat tmpMat2;
   //cv::Sobel(tmpMat, tmpMat2, CV_8UC1, 1, 0);
-  cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 5, 5);
+  //cv::bitwise_not(tmpMat, tmpMat);
+  cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 13, 13);
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
   //int morph_size = 2;
@@ -131,6 +132,8 @@
   //cv::morphologyEx(tmpMat, tmpMat, cv::MORPH_OPEN, element);
   //cv::erode(tmpMat, tmpMat, element);
   //cv::dilate(tmpMat, tmpMat, element);
+  cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
+  cv::floodFill(tmpMat, seedPoint, cv::Scalar(128,128,128));
 
 
   // TODO: LineSegmentDetector for opencv 3.0
