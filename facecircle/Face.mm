@@ -184,6 +184,14 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   }
   cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
 
+  /*
+  cv::MSER mser;
+  cv::vector<cv::KeyPoint> mser_features;
+  mser.detect(tmpMat, mser_features);
+  for(int i=0;i<mser_features.size();i++){
+    cv::circle(tmpMat , mser_features[i].pt, 1, cv::Scalar(0,0,255), 3);
+  }
+  */
 
   // TODO: LineSegmentDetector for opencv 3.0
   //std::vector<cv::Vec4i> lines;
