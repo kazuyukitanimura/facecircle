@@ -17,6 +17,7 @@
 #ifdef __cplusplus
 - (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toGrayscaleMat:(cv::Mat &)mat;
 - (void)shiftImage:(cv::Mat &)img x:(int)offsetx y:(int)offsety;
+void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, double r);
 #endif
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer;
 

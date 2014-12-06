@@ -69,6 +69,49 @@
   cv::warpAffine(mat,mat,trans_mat,mat.size());
 }
 
+// http://schima.hatenablog.com/entry/2013/10/25/202418
+void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, double r)
+{
+  dst.create(src.size(), src.type());
+
+  cv::Mat srcWithBorder;
+  int borderSize = kernelSize / 2 + 1;
+  int kernelPixels = kernelSize * kernelSize;
+  cv::copyMakeBorder(src, srcWithBorder, borderSize, borderSize,
+                     borderSize, borderSize, cv::BORDER_REPLICATE);
+
+  cv::Mat sum, sqSum;
+  cv::integral(srcWithBorder, sum, sqSum);
+  for(int y = 0; y < src.rows; y++)
+  {
+    for(int x = 0; x < src.cols; x++)
+    {
+      int kx = x + kernelSize;
+      int ky = y + kernelSize;
+      double sumVal = sum.at<int>(ky, kx)
+      - sum.at<int>(ky, x)
+      - sum.at<int>(y, kx)
+      + sum.at<int>(y, x);
+      double sqSumVal = sqSum.at<double>(ky, kx)
+      - sqSum.at<double>(ky, x)
+      - sqSum.at<double>(y, kx)
+      + sqSum.at<double>(y, x);
+
+      double mean = sumVal / kernelPixels;
+      double var = (sqSumVal / kernelPixels) - (mean * mean);
+      if (var < 0.0)
+        var = 0.0;
+      double stddev = sqrt(var);
+      double threshold = mean * (1 + k * (stddev / r - 1));
+
+      if (src.at<uchar>(y, x) < threshold)
+        dst.at<uchar>(y, x) = 0;
+      else
+        dst.at<uchar>(y, x) = 255;
+    }
+  }
+}
+
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer
 {
   // create grayscale TODO: is it possible to process only updated pixels not the entire image?
@@ -124,7 +167,7 @@
   //cv::Mat tmpMat2;
   //cv::Sobel(tmpMat, tmpMat2, CV_8UC1, 1, 0);
   //cv::bitwise_not(tmpMat, tmpMat);
-  cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 13, 13);
+  //cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 13, 13);
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
   //int morph_size = 2;
@@ -132,8 +175,10 @@
   //cv::morphologyEx(tmpMat, tmpMat, cv::MORPH_OPEN, element);
   //cv::erode(tmpMat, tmpMat, element);
   //cv::dilate(tmpMat, tmpMat, element);
+  cv::Mat tmpMat2;
+  sauvolaFast(tmpMat, tmpMat2, 11, 0.05, 100);
   cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
-  cv::floodFill(tmpMat, seedPoint, cv::Scalar(128,128,128));
+  cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
 
 
   // TODO: LineSegmentDetector for opencv 3.0
@@ -156,7 +201,7 @@
   // TODO: wrap with findContours()
 
   // flip the preview
-  cv::flip(tmpMat, mat, 1);
+  cv::flip(tmpMat2, mat, 1);
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
   return MatToUIImage(mat);
