@@ -172,10 +172,10 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   sauvolaFast(tmpMat, tmpMat2, 11, 0.05, 100);
   cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
   // search pixel
-  int amount = 30;
-  for (int y = -MIN(amount, seedPoint.y); y <= amount; y++) {
+  int amount = seedPoint.y * 0.5;
+  for (int y = -amount; y <= amount; y++) {
     if (tmpMat2.at<uchar>(seedPoint.x, seedPoint.y + y) == 255) {
-      seedPoint.y = MIN(seedPoint.y + y, previousROI.height - 1);
+      seedPoint.y = seedPoint.y + y;
       break;
     }
   }
