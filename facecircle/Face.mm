@@ -13,6 +13,7 @@
 {
   cv::CascadeClassifier cascade;
   cv::Rect previousROI;
+  int previousOffsetY;
 }
 @end
 
@@ -32,6 +33,7 @@
   }
 
   previousROI = cv::Rect(0, 0, 1, 1);
+  previousOffsetY = 0;
 
   return self;
 }
@@ -124,7 +126,7 @@ void unsharpMask(cv::Mat& im)
   cv::addWeighted(im, 1.5, tmp, -0.5, 0, im);
 }
 
-- (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer
+- (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer camera:(AVCaptureDevice*)device
 {
   // create grayscale TODO: is it possible to process only updated pixels not the entire image?
   cv::Mat mat;
@@ -139,8 +141,8 @@ void unsharpMask(cv::Mat& im)
     cv::Rect r = faces[0];
 
     // vertical shift TODO: shift after crop for performance
-    int offsety = (mat.rows - r.height) * 0.5 - r.y;
-    [self shiftImage:mat x:0 y:offsety];
+    previousOffsetY = (((mat.rows - r.height) * 0.5 - r.y) + previousOffsetY) * 0.5; // simple stabilization
+    [self shiftImage:mat x:0 y:previousOffsetY];
 
     // crop
     // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
@@ -159,6 +161,16 @@ void unsharpMask(cv::Mat& im)
     previousROI.height = MIN((newHeight + previousROI.height) * 0.5, mat.rows - previousROI.y);
     tmpMat = mat(previousROI);
     // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
+    if (device.exposurePointOfInterestSupported) {
+      NSError *error;
+      if ([device lockForConfiguration:&error]) {
+        cv::Point maxLoc;
+        cv::minMaxLoc(mat(cv::Rect(r.x, r.y, r.width, r.height)), NULL, NULL, NULL, &maxLoc);
+        device.exposurePointOfInterest = CGPointMake(maxLoc.x / mat.cols, maxLoc.y / mat.rows);
+        device.exposureMode = AVCaptureExposureModeContinuousAutoExposure;
+        [device unlockForConfiguration];
+      }
+    }
   }
 
   //cv::medianBlur(tmpMat, tmpMat, 9);

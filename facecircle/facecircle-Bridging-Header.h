@@ -5,6 +5,7 @@
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
 #import <CoreMedia/CoreMedia.h>
+#import <AVFoundation/AVFoundation.h>
 
 #ifdef __cplusplus
 #import <opencv2/opencv.hpp>
@@ -20,6 +21,6 @@
 void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, double r);
 void unsharpMask(cv::Mat& im);
 #endif
-- (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer;
+- (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer camera:(AVCaptureDevice*)device;
 
 @end

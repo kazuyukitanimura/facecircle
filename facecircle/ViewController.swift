@@ -131,7 +131,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
   
   func captureOutput(captureOutput: AVCaptureOutput!, didOutputSampleBuffer sampleBuffer: CMSampleBuffer!, fromConnection connection: AVCaptureConnection!) {
     dispatch_async(dispatch_get_main_queue(), {
-      self.imageView.image = self.face.processFace(sampleBuffer)
+      self.imageView.image = self.face.processFace(sampleBuffer, camera: self.captureDevice)
     })
   }
   
