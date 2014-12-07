@@ -12,8 +12,6 @@
 @interface Face()
 {
   cv::CascadeClassifier cascade;
-  cv::Rect previousROI;
-  int previousOffsetY;
   cv::KalmanFilter KF;
 }
 @end
@@ -33,14 +31,14 @@
     return nil;
   }
 
-  previousROI = cv::Rect(0, 0, 1, 1);
-  previousOffsetY = 0;
   // Initialize Kalman Filter with
   // 4 dynamic parameters and 2 measurement parameters,
   // where my measurement is: 2D location of object,
   // and dynamic is: 2D location and 2D velocity.
   // http://stackoverflow.com/questions/18403918/opencv-kalman-filter-prediction-without-new-observtion
   // http://opencvexamples.blogspot.com/2014/01/kalman-filter-implementation-tracking.html#.VIRDi6TF95w
+  // TODO add accelerations later for smoother stabilization
+  // http://stackoverflow.com/questions/17836267/kalmanfilter6-2-0-transition-matrix
   KF.init(10, 5, 0);
   KF.transitionMatrix = *(cv::Mat_<float>(10, 10) <<
                           1,0,0,0,0,1,0,0,0,0,
@@ -170,11 +168,12 @@ void unsharpMask(cv::Mat& im)
   cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
 
   cv::Mat tmpMat = mat;
+  cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
 
     // calculate params
-    previousOffsetY = (mat.rows - r.height) * 0.5 - r.y;
+    int offsetY = (mat.rows - r.height) * 0.5 - r.y;
     int newHeight = r.width * 2;
     int newY = 0;
     if (mat.rows < newHeight) {
@@ -191,7 +190,7 @@ void unsharpMask(cv::Mat& im)
     measurement(1) = newY;
     measurement(2) = r.width;
     measurement(3) = newHeight;
-    measurement(4) = previousOffsetY;
+    measurement(4) = offsetY;
     // Kalman estimate
     cv::Mat estimated = KF.correct(measurement);
 
@@ -200,11 +199,11 @@ void unsharpMask(cv::Mat& im)
 
     // crop
     // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
-    previousROI.x = MAX(estimated.at<float>(0), 0);
-    previousROI.y = MAX(estimated.at<float>(1), 0);
-    previousROI.width = MAX(MIN(estimated.at<float>(2), mat.cols - previousROI.x), 1);
-    previousROI.height = MAX(MIN(estimated.at<float>(3), mat.rows - previousROI.y), 1);
-    tmpMat = mat(previousROI);
+    roi.x = MAX(estimated.at<float>(0), 0);
+    roi.y = MAX(estimated.at<float>(1), 0);
+    roi.width = MAX(MIN(estimated.at<float>(2), mat.cols - roi.x), 1);
+    roi.height = MAX(MIN(estimated.at<float>(3), mat.rows - roi.y), 1);
+    tmpMat = mat(roi);
     // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
 
     // Exposure settings
@@ -249,8 +248,8 @@ void unsharpMask(cv::Mat& im)
   cv::morphologyEx(tmpMat2, tmpMat2, cv::MORPH_OPEN, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
-  cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
-  cv::ellipse(tmpMat2, seedPoint, cv::Size(previousROI.width * 0.20, previousROI.height * 0.20), 0, 0, 360, cv::Scalar( 255, 255, 255), -1); // create white spot
+  cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
+  cv::ellipse(tmpMat2, seedPoint, cv::Size(roi.width * 0.20, roi.height * 0.20), 0, 0, 360, cv::Scalar( 255, 255, 255), -1); // create white spot
   cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
 
   /*
