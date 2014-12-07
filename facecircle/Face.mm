@@ -108,6 +108,17 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   }
 }
 
+- (void)searchPixel:(cv::Mat &)mat seedPoint:(cv::Point &)point
+{
+  int amount = point.y * 0.5;
+  for (int y = -amount; y <= amount; y++) {
+    if (mat.at<uchar>(point.x, point.y + y) == 255) {
+      point.y = point.y + y;
+      break;
+    }
+  }
+}
+
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer
 {
   // create grayscale TODO: is it possible to process only updated pixels not the entire image?
@@ -167,21 +178,14 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
   cv::Mat tmpMat2;
-  sauvolaFast(tmpMat, tmpMat2, 11, 0.05, 100);
+  sauvolaFast(tmpMat, tmpMat2, 15, 0.05, 100);
   int morph_size = 1;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
   cv::morphologyEx(tmpMat2, tmpMat2, cv::MORPH_OPEN, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
   cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
-  // search pixel
-  int amount = seedPoint.y * 0.5;
-  for (int y = -amount; y <= amount; y++) {
-    if (tmpMat2.at<uchar>(seedPoint.x, seedPoint.y + y) == 255) {
-      seedPoint.y = seedPoint.y + y;
-      break;
-    }
-  }
+  [self searchPixel:tmpMat2 seedPoint:seedPoint];
   cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
 
   /*

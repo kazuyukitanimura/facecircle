@@ -18,6 +18,7 @@
 - (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toGrayscaleMat:(cv::Mat &)mat;
 - (void)shiftImage:(cv::Mat &)img x:(int)offsetx y:(int)offsety;
 void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, double r);
+- (void)searchPixel:(cv::Mat &)mat seedPoint:(cv::Point &)point;
 #endif
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer;
 
