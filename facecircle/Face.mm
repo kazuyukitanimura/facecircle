@@ -94,10 +94,17 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
         var = 0.0;
       }
       double stddev = sqrt(var);
-      //double threshold = mean * (1 + k * (stddev / r - 1));
-      double p = 2.0;
-      double q = 10.0;
-      double threshold = mean * (1 + std::pow(p, -q * mean) + k * (stddev / r - 1)); //Phansalkar
+      // original
+      double threshold = mean * (1 + k * (stddev / r - 1));
+      //Phansalkar
+      //double p = 2.0;
+      //double q = 10.0;
+      //double threshold = mean * (1 + std::pow(p, -q * mean) + k * (stddev / r - 1));
+      // http://research.ijcaonline.org/volume51/number6/pxc3881362.pdf
+      //double minVal;
+      //double maxVal;
+      //cv::minMaxLoc(srcWithBorder(cv::Rect(x, y, kernelSize, kernelSize)), &minVal, &maxVal);
+      //double threshold = 0.95 * (mean + (maxVal - minVal)/(1 - src.at<uchar>(y, x)));
 
       if (src.at<uchar>(y, x) < threshold) {
         dst.at<uchar>(y, x) = 0;
