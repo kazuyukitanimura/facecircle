@@ -14,6 +14,7 @@
   cv::CascadeClassifier cascade;
   cv::Rect previousROI;
   int previousOffsetY;
+  cv::KalmanFilter KF;
 }
 @end
 
@@ -34,6 +35,38 @@
 
   previousROI = cv::Rect(0, 0, 1, 1);
   previousOffsetY = 0;
+  // Initialize Kalman Filter with
+  // 4 dynamic parameters and 2 measurement parameters,
+  // where my measurement is: 2D location of object,
+  // and dynamic is: 2D location and 2D velocity.
+  // http://stackoverflow.com/questions/18403918/opencv-kalman-filter-prediction-without-new-observtion
+  // http://opencvexamples.blogspot.com/2014/01/kalman-filter-implementation-tracking.html#.VIRDi6TF95w
+  KF.init(10, 5, 0);
+  KF.transitionMatrix = *(cv::Mat_<float>(10, 10) <<
+                          1,0,0,0,0,1,0,0,0,0,
+                          0,1,0,0,0,0,1,0,0,0,
+                          0,0,1,0,0,0,0,1,0,0,
+                          0,0,0,1,0,0,0,0,1,0,
+                          0,0,0,0,1,0,0,0,0,1,
+                          0,0,0,0,0,1,0,0,0,0,
+                          0,0,0,0,0,0,1,0,0,0,
+                          0,0,0,0,0,0,0,1,0,0,
+                          0,0,0,0,0,0,0,0,1,0,
+                          0,0,0,0,0,0,0,0,0,1);
+  KF.statePre.at<float>(0) = 0;
+  KF.statePre.at<float>(1) = 0;
+  KF.statePre.at<float>(2) = 160; // TODO get a realistic initial width
+  KF.statePre.at<float>(3) = 160; // TODO get a realistic initial height
+  KF.statePre.at<float>(4) = 0;
+  KF.statePre.at<float>(5) = 0;
+  KF.statePre.at<float>(6) = 0;
+  KF.statePre.at<float>(7) = 0;
+  KF.statePre.at<float>(8) = 0;
+  KF.statePre.at<float>(9) = 0;
+  setIdentity(KF.measurementMatrix);
+  setIdentity(KF.processNoiseCov, cv::Scalar::all(0.005)); //adjust this for faster convergence - but higher noise
+  setIdentity(KF.measurementNoiseCov, cv::Scalar::all(10));
+  setIdentity(KF.errorCovPost, cv::Scalar::all(.1));
 
   return self;
 }
@@ -140,12 +173,8 @@ void unsharpMask(cv::Mat& im)
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
 
-    // vertical shift
-    previousOffsetY = (((mat.rows - r.height) * 0.5 - r.y) + previousOffsetY) * 0.5; // simple stabilization
-    [self shiftImage:mat x:0 y:previousOffsetY];
-
-    // crop
-    // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
+    // calculate params
+    previousOffsetY = (mat.rows - r.height) * 0.5 - r.y;
     int newHeight = r.width * 2;
     int newY = 0;
     if (mat.rows < newHeight) {
@@ -153,12 +182,28 @@ void unsharpMask(cv::Mat& im)
     } else {
       newY = (mat.rows - newHeight) * 0.5;
     }
-    // Simple stabilizer
-    // TODO use Kalman Filter to stablize http://nghiaho.com/?p=2093
-    previousROI.x = (r.x + previousROI.x) * 0.5;
-    previousROI.y = (newY + previousROI.y) * 0.5;
-    previousROI.width = MIN((r.width + previousROI.width) * 0.5, mat.cols - previousROI.x);
-    previousROI.height = MIN((newHeight + previousROI.height) * 0.5, mat.rows - previousROI.y);
+
+    // Kalman filter predict, to update the internal statePre variable
+    KF.predict();
+    // Kalman measure
+    cv::Mat_<float> measurement(5,1);
+    measurement(0) = r.x;
+    measurement(1) = newY;
+    measurement(2) = r.width;
+    measurement(3) = newHeight;
+    measurement(4) = previousOffsetY;
+    // Kalman estimate
+    cv::Mat estimated = KF.correct(measurement);
+
+    // vertical shift
+    [self shiftImage:mat x:0 y:estimated.at<float>(4)];
+
+    // crop
+    // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
+    previousROI.x = MAX(estimated.at<float>(0), 0);
+    previousROI.y = MAX(estimated.at<float>(1), 0);
+    previousROI.width = MAX(MIN(estimated.at<float>(2), mat.cols - previousROI.x), 1);
+    previousROI.height = MAX(MIN(estimated.at<float>(3), mat.rows - previousROI.y), 1);
     tmpMat = mat(previousROI);
     // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
 
