@@ -140,7 +140,7 @@ void unsharpMask(cv::Mat& im)
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
 
-    // vertical shift TODO: shift after crop for performance
+    // vertical shift
     previousOffsetY = (((mat.rows - r.height) * 0.5 - r.y) + previousOffsetY) * 0.5; // simple stabilization
     [self shiftImage:mat x:0 y:previousOffsetY];
 
@@ -156,11 +156,13 @@ void unsharpMask(cv::Mat& im)
     // Simple stabilizer
     // TODO use Kalman Filter to stablize http://nghiaho.com/?p=2093
     previousROI.x = (r.x + previousROI.x) * 0.5;
-    previousROI.y = (newY + previousROI.x) * 0.5;
+    previousROI.y = (newY + previousROI.y) * 0.5;
     previousROI.width = MIN((r.width + previousROI.width) * 0.5, mat.cols - previousROI.x);
     previousROI.height = MIN((newHeight + previousROI.height) * 0.5, mat.rows - previousROI.y);
     tmpMat = mat(previousROI);
     // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
+
+    // Exposure settings
     if (device.exposurePointOfInterestSupported) {
       NSError *error;
       if ([device lockForConfiguration:&error]) {
@@ -202,7 +204,7 @@ void unsharpMask(cv::Mat& im)
   cv::morphologyEx(tmpMat2, tmpMat2, cv::MORPH_OPEN, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
-  cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.45);
+  cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
   cv::ellipse(tmpMat2, seedPoint, cv::Size(previousROI.width * 0.20, previousROI.height * 0.20), 0, 0, 360, cv::Scalar( 255, 255, 255), -1); // create white spot
   cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
 
