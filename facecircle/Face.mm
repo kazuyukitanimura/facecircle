@@ -115,6 +115,15 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   }
 }
 
+// https://opencv-code.com/quick-tips/sharpen-image-with-unsharp-mask/
+// Perform in-place unsharp masking operation
+void unsharpMask(cv::Mat& im)
+{
+  cv::Mat tmp;
+  cv::GaussianBlur(im, tmp, cv::Size(5,5), 5);
+  cv::addWeighted(im, 1.5, tmp, -0.5, 0, im);
+}
+
 - (void)searchPixel:(cv::Mat &)mat seedPoint:(cv::Point &)point
 {
   int amount = point.y * 0.5;
@@ -184,6 +193,7 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
   //cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 13, 13);
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
+  //unsharpMask(tmpMat);
   cv::Mat tmpMat2;
   sauvolaFast(tmpMat, tmpMat2, 15, 0.05, 100);
   int morph_size = 1;
