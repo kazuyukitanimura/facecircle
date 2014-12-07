@@ -124,17 +124,6 @@ void unsharpMask(cv::Mat& im)
   cv::addWeighted(im, 1.5, tmp, -0.5, 0, im);
 }
 
-- (void)searchPixel:(cv::Mat &)mat seedPoint:(cv::Point &)point
-{
-  int amount = point.y * 0.5;
-  for (int y = -amount; y <= amount; y++) {
-    if (mat.at<uchar>(point.x, point.y + y) == 255) {
-      point.y = point.y + y;
-      break;
-    }
-  }
-}
-
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer
 {
   // create grayscale TODO: is it possible to process only updated pixels not the entire image?
@@ -201,8 +190,8 @@ void unsharpMask(cv::Mat& im)
   cv::morphologyEx(tmpMat2, tmpMat2, cv::MORPH_OPEN, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
-  cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.5);
-  [self searchPixel:tmpMat2 seedPoint:seedPoint];
+  cv::Point seedPoint = cv::Point(previousROI.width * 0.5, previousROI.height * 0.45);
+  cv::ellipse(tmpMat2, seedPoint, cv::Size(previousROI.width * 0.20, previousROI.height * 0.20), 0, 0, 360, cv::Scalar( 255, 255, 255), -1); // create white spot
   cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
 
   /*

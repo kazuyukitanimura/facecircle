@@ -63,6 +63,9 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         if (captureDevice.focusPointOfInterestSupported) {
           println("focus")
         }
+        if (captureDevice.exposurePointOfInterestSupported) {
+          println("exposure")
+        }
         captureDevice.unlockForConfiguration()
       }
     }

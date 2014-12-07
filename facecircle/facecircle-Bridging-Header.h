@@ -19,7 +19,6 @@
 - (void)shiftImage:(cv::Mat &)img x:(int)offsetx y:(int)offsety;
 void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, double r);
 void unsharpMask(cv::Mat& im);
-- (void)searchPixel:(cv::Mat &)mat seedPoint:(cv::Point &)point;
 #endif
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer;
 
