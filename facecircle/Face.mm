@@ -102,7 +102,7 @@
       // R = clip(( 298 * C           + 409 * E + 128) >> 8)
       // G = clip(( 298 * C - 100 * D - 208 * E + 128) >> 8)
       // B = clip(( 298 * C + 516 * D           + 128) >> 8)
-      uint32_t t = (i >> 1) * w + (j >> 1); // TODO upconvert
+      uint32_t t = (i >> 1) * w + (j & -2); // TODO upconvert
       uint32_t y = yDataAddress[i * w + j];
       uint32_t u = uvDataAddress[t];
       uint32_t v = uvDataAddress[t + 1];
@@ -112,7 +112,7 @@
       uint32_t R = 0xFF & (( 298 * C           + 409 * E + 128) >> 8);
       uint32_t G = 0xFF & (( 298 * C - 100 * D - 208 * E + 128) >> 8);
       uint32_t B = 0xFF & (( 298 * C + 516 * D           + 128) >> 8);
-      mat.data[(i + 1) * w - j - 1] = y - ((66 * R) >> 8); // remove R
+      mat.data[(i + 1) * w - j - 1] = y /*+ (v >> 4) + (u >> 4) ;*/ - ((129 * G) >> 8); // remove R
     }
   }
 
