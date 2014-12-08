@@ -53,8 +53,8 @@
                           0,0,0,0,0,0,0,0,0,1);
   KF.statePre.at<float>(0) = 0;
   KF.statePre.at<float>(1) = 0;
-  KF.statePre.at<float>(2) = 160; // TODO get a realistic initial width
-  KF.statePre.at<float>(3) = 160; // TODO get a realistic initial height
+  KF.statePre.at<float>(2) = 72; // TODO get a realistic initial width
+  KF.statePre.at<float>(3) = 96; // TODO get a realistic initial height
   KF.statePre.at<float>(4) = 0;
   KF.statePre.at<float>(5) = 0;
   KF.statePre.at<float>(6) = 0;
@@ -78,7 +78,8 @@
   CVPixelBufferLockBaseAddress(imageBuffer, 0);
 
   // get the address to the image data
-  void *imageBufferAddress = CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
+  uint8_t *yDataAddress = (uint8_t *) CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
+  uint8_t *uvDataAddress = (uint8_t *) CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
 
   // get image properties
   int w = (int)CVPixelBufferGetWidth(imageBuffer);
@@ -88,8 +89,32 @@
   // 8 bit unsigned chars for grayscale data
   // the first plane contains the grayscale data
   // therefore we use <imgBufAddr> as source
+  // http://en.wikipedia.org/wiki/YUV
+  // http://kentaroid.com/kcvpixelformattype%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%81%AE%E8%80%83%E5%AF%9F/
+  // http://stackoverflow.com/questions/8476821/repeated-scene-items-in-ios-yuv-video-capturing-output
+  // http://msdn.microsoft.com/en-us/library/windows/desktop/dd206750(v=vs.85).aspx
   mat.create(h, w, CV_8UC1);
-  memcpy(mat.data, imageBufferAddress, w * h);
+  for (uint32_t i = 0; i < h; i++) {
+    for (uint32_t j = 0; j < w; j++) {
+      // Y = ( (  66 * R + 129 * G +  25 * B + 128) >> 8) +  16
+      // U = ( ( -38 * R -  74 * G + 112 * B + 128) >> 8) + 128
+      // V = ( ( 112 * R -  94 * G -  18 * B + 128) >> 8) + 128
+      // R = clip(( 298 * C           + 409 * E + 128) >> 8)
+      // G = clip(( 298 * C - 100 * D - 208 * E + 128) >> 8)
+      // B = clip(( 298 * C + 516 * D           + 128) >> 8)
+      uint32_t t = (i >> 1) * w + (j >> 1); // TODO upconvert
+      uint32_t y = yDataAddress[i * w + j];
+      uint32_t u = uvDataAddress[t];
+      uint32_t v = uvDataAddress[t + 1];
+      uint32_t C = y - 16;
+      uint32_t D = u - 128;
+      uint32_t E = v - 128;
+      uint32_t R = 0xFF & (( 298 * C           + 409 * E + 128) >> 8);
+      uint32_t G = 0xFF & (( 298 * C - 100 * D - 208 * E + 128) >> 8);
+      uint32_t B = 0xFF & (( 298 * C + 516 * D           + 128) >> 8);
+      mat.data[(i + 1) * w - j - 1] = y - ((66 * R) >> 8); // remove R
+    }
+  }
 
   // unlock again
   CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
@@ -281,10 +306,10 @@ void unsharpMask(cv::Mat& im)
   // TODO: wrap with findContours()
 
   // flip the preview
-  cv::flip(tmpMat2, mat, 1);
+  //cv::flip(tmpMat2, mat, 1);
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
-  return MatToUIImage(mat);
+  return MatToUIImage(tmpMat2);
 }
 
 @end

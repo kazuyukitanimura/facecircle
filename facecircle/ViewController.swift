@@ -57,6 +57,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         if (captureDevice.autoFocusRangeRestrictionSupported) {
           captureDevice.autoFocusRangeRestriction = .Near
         }
+        /*
         if (captureDevice.isFocusModeSupported(.Locked)) {
           println("lock")
         }
@@ -66,6 +67,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         if (captureDevice.exposurePointOfInterestSupported) {
           println("exposure")
         }
+        */
         captureDevice.unlockForConfiguration()
       }
     }
