@@ -214,8 +214,8 @@ void unsharpMask(cv::Mat& im)
     cv::Mat_<float> measurement(5,1);
     measurement(0) = r.x;
     measurement(1) = newY;
-    measurement(2) = r.width;
-    measurement(3) = newHeight;
+    measurement(2) = MIN(r.width, mat.cols - r.x);
+    measurement(3) = MIN(newHeight, mat.rows - newY);
     measurement(4) = offsetY;
     // Kalman estimate
     cv::Mat estimated = KF.correct(measurement);
