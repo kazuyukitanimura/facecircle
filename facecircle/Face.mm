@@ -194,7 +194,6 @@ void unsharpMask(cv::Mat& im)
 
   cv::Mat tmpMat = mat;
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
-  cv::Point maxLoc;
 
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
@@ -239,13 +238,11 @@ void unsharpMask(cv::Mat& im)
     if (device.exposurePointOfInterestSupported && !device.adjustingExposure) {
       NSError *error;
       if ([device lockForConfiguration:&error]) {
-        //cv::Point maxLoc;
+        cv::Point maxLoc;
         cv::Mat blurMat;
         cv::GaussianBlur(tmpMat, blurMat, cv::Size(15,15), 0);
         cv::minMaxLoc(blurMat, NULL, NULL, NULL, &maxLoc);
-        maxLoc.x += roi.x;
-        maxLoc.y += roi.y + estimated.at<float>(4);
-        device.exposurePointOfInterest = CGPointMake(maxLoc.x / mat.cols, maxLoc.y / mat.rows);
+        device.exposurePointOfInterest = CGPointMake((maxLoc.x + roi.x)/ mat.cols, (maxLoc.y + roi.y - estimated.at<float>(4)) / mat.rows);
         device.exposureMode = AVCaptureExposureModeContinuousAutoExposure;
         //device.exposureMode = AVCaptureExposureModeLocked;
         //device.exposureMode = AVCaptureExposureModeAutoExpose;
@@ -317,7 +314,6 @@ void unsharpMask(cv::Mat& im)
 
   // flip the preview
   //cv::flip(tmpMat2, mat, 1);
-  cv::circle(tmpMat2, maxLoc, 10, cv::Scalar(205,205,205), 3, 8, 0 );
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
   return MatToUIImage(tmpMat2);
