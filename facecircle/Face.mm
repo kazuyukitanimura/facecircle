@@ -51,11 +51,11 @@
                           0,0,0,0,0,0,0,1,0,0,
                           0,0,0,0,0,0,0,0,1,0,
                           0,0,0,0,0,0,0,0,0,1);
-  KF.statePre.at<float>(0) = 0;
-  KF.statePre.at<float>(1) = 0;
+  KF.statePre.at<float>(0) = 0; // x
+  KF.statePre.at<float>(1) = 0; // y
   KF.statePre.at<float>(2) = 72; // TODO get a realistic initial width
   KF.statePre.at<float>(3) = 96; // TODO get a realistic initial height
-  KF.statePre.at<float>(4) = 0;
+  KF.statePre.at<float>(4) = 0; // offsetY
   KF.statePre.at<float>(5) = 0;
   KF.statePre.at<float>(6) = 0;
   KF.statePre.at<float>(7) = 0;
@@ -194,6 +194,8 @@ void unsharpMask(cv::Mat& im)
 
   cv::Mat tmpMat = mat;
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
+  cv::Point maxLoc;
+
   if (faces.size() > 0) {
     cv::Rect r = faces[0];
 
@@ -232,13 +234,21 @@ void unsharpMask(cv::Mat& im)
     // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
 
     // Exposure settings
-    if (device.exposurePointOfInterestSupported) {
+    // TODO change this to observer for device.adjustingExposure
+    // http://cocoadays.blogspot.com/2011
+    if (device.exposurePointOfInterestSupported && !device.adjustingExposure) {
       NSError *error;
       if ([device lockForConfiguration:&error]) {
-        cv::Point maxLoc;
-        cv::minMaxLoc(mat(cv::Rect(r.x, r.y, r.width, r.height)), NULL, NULL, NULL, &maxLoc);
+        //cv::Point maxLoc;
+        cv::Mat blurMat;
+        cv::GaussianBlur(tmpMat, blurMat, cv::Size(15,15), 0);
+        cv::minMaxLoc(blurMat, NULL, NULL, NULL, &maxLoc);
+        maxLoc.x += roi.x;
+        maxLoc.y += roi.y + estimated.at<float>(4);
         device.exposurePointOfInterest = CGPointMake(maxLoc.x / mat.cols, maxLoc.y / mat.rows);
         device.exposureMode = AVCaptureExposureModeContinuousAutoExposure;
+        //device.exposureMode = AVCaptureExposureModeLocked;
+        //device.exposureMode = AVCaptureExposureModeAutoExpose;
         [device unlockForConfiguration];
       }
     }
@@ -307,6 +317,7 @@ void unsharpMask(cv::Mat& im)
 
   // flip the preview
   //cv::flip(tmpMat2, mat, 1);
+  cv::circle(tmpMat2, maxLoc, 10, cv::Scalar(205,205,205), 3, 8, 0 );
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
   return MatToUIImage(tmpMat2);
