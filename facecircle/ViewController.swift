@@ -53,7 +53,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
         println("lock error: \(error.localizedDescription)")
         return
       } else {
-        captureDevice.activeVideoMinFrameDuration = CMTimeMake(1, 15) // 15 FPS
+        captureDevice.activeVideoMinFrameDuration = CMTimeMake(1, 2) // 15 FPS
         if (captureDevice.autoFocusRangeRestrictionSupported) {
           captureDevice.autoFocusRangeRestriction = .Near
         }
