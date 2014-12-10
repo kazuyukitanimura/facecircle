@@ -78,8 +78,7 @@
   CVPixelBufferLockBaseAddress(imageBuffer, 0);
 
   // get the address to the image data
-  uint8_t *yDataAddress = (uint8_t *) CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-  uint8_t *uvDataAddress = (uint8_t *) CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
+  void *dataAddress = CVPixelBufferGetBaseAddress(imageBuffer);
 
   // get image properties
   int w = (int)CVPixelBufferGetWidth(imageBuffer);
@@ -93,28 +92,8 @@
   // http://kentaroid.com/kcvpixelformattype%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%81%AE%E8%80%83%E5%AF%9F/
   // http://stackoverflow.com/questions/8476821/repeated-scene-items-in-ios-yuv-video-capturing-output
   // http://msdn.microsoft.com/en-us/library/windows/desktop/dd206750(v=vs.85).aspx
-  mat.create(h, w, CV_8UC1);
-  for (uint32_t i = 0; i < h; i++) {
-    for (uint32_t j = 0; j < w; j++) {
-      // Y = ( (  66 * R + 129 * G +  25 * B + 128) >> 8) +  16
-      // U = ( ( -38 * R -  74 * G + 112 * B + 128) >> 8) + 128
-      // V = ( ( 112 * R -  94 * G -  18 * B + 128) >> 8) + 128
-      // R = clip(( 298 * C           + 409 * E + 128) >> 8)
-      // G = clip(( 298 * C - 100 * D - 208 * E + 128) >> 8)
-      // B = clip(( 298 * C + 516 * D           + 128) >> 8)
-      uint32_t t = (i >> 1) * w + (j & -2); // TODO upconvert
-      uint32_t y = yDataAddress[i * w + j]; // 16 - 235
-      uint32_t u = uvDataAddress[t]; // 16 -240
-      uint32_t v = uvDataAddress[t + 1]; // 16 -240
-      uint32_t C = y - 16;
-      uint32_t D = u - 128;
-      uint32_t E = v - 128;
-      uint32_t R = 0xFF & (( 298 * C           + 409 * E + 128) >> 8);
-      uint32_t G = 0xFF & (( 298 * C - 100 * D - 208 * E + 128) >> 8);
-      uint32_t B = 0xFF & (( 298 * C + 516 * D           + 128) >> 8);
-      mat.data[(i + 1) * w - j - 1] = C + (v >> 3) + (u >> 6);// + (R >> 3) - (G >> 7) + (B >> 6); // adjust by color
-    }
-  }
+  mat = cv::Mat(h, w, CV_8UC4, dataAddress, CVPixelBufferGetBytesPerRow(imageBuffer));
+
 
   // unlock again
   CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
@@ -187,10 +166,12 @@ void unsharpMask(cv::Mat& im)
   // create grayscale TODO: is it possible to process only updated pixels not the entire image?
   cv::Mat mat;
   [self convertYUVSampleBuffer:sampleBuffer toGrayscaleMat:mat];
+  cv::Mat greyMat;
+  cv::cvtColor(mat, greyMat, CV_BGR2GRAY);
 
   // detect faces
   std::vector<cv::Rect> faces;
-  cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
+  cascade.detectMultiScale(greyMat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
 
   cv::Mat tmpMat = mat;
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
@@ -235,20 +216,6 @@ void unsharpMask(cv::Mat& im)
     // Exposure settings
     // TODO change this to observer for device.adjustingExposure
     // http://cocoadays.blogspot.com/2011
-    if (device.exposurePointOfInterestSupported && !device.adjustingExposure) {
-      NSError *error;
-      if ([device lockForConfiguration:&error]) {
-        cv::Point maxLoc;
-        cv::Mat blurMat;
-        cv::GaussianBlur(tmpMat, blurMat, cv::Size(15,15), 0);
-        cv::minMaxLoc(blurMat, NULL, NULL, NULL, &maxLoc);
-        device.exposurePointOfInterest = CGPointMake((maxLoc.x + roi.x)/ mat.cols, (maxLoc.y + roi.y - estimated.at<float>(4)) / mat.rows);
-        device.exposureMode = AVCaptureExposureModeContinuousAutoExposure;
-        //device.exposureMode = AVCaptureExposureModeLocked;
-        //device.exposureMode = AVCaptureExposureModeAutoExpose;
-        [device unlockForConfiguration];
-      }
-    }
   }
 
   //cv::medianBlur(tmpMat, tmpMat, 9);
@@ -258,7 +225,7 @@ void unsharpMask(cv::Mat& im)
   //cv::adaptiveBilateralFilter(tmpMat, matMat, cv::Size(3,3), 15);
   //cv::equalizeHist(tmpMat, tmpMat);
   //cv::Laplacian(tmpMat, tmpMat, CV_8UC1);
-  //cv::Canny(tmpMat, tmpMat, 200, 180);
+  cv::Canny(tmpMat, tmpMat, 200, 100);
   //cv::Mat sobel_x, sobel_y;
   //cv::Sobel(tmpMat, sobel_x, CV_8UC1, 1, 0);
   //cv::convertScaleAbs(sobel_x, sobel_x);
@@ -268,21 +235,21 @@ void unsharpMask(cv::Mat& im)
   //cv::Scharr(tmpMat, tmpMat, CV_8UC1, 1, 0);
   //cv::Mat tmpMat2;
   //cv::Sobel(tmpMat, tmpMat2, CV_8UC1, 1, 0);
-  //cv::bitwise_not(tmpMat, tmpMat);
+  cv::bitwise_not(tmpMat, tmpMat);
   //cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 13, 13);
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
   //unsharpMask(tmpMat);
-  cv::Mat tmpMat2;
-  sauvolaFast(tmpMat, tmpMat2, 15, 0.05, 100);
-  int morph_size = 1;
+  //cv::Mat tmpMat2;
+  //sauvolaFast(tmpMat, tmpMat2, 15, 0.05, 100);
+  int morph_size = 2;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
-  cv::morphologyEx(tmpMat2, tmpMat2, cv::MORPH_OPEN, element);
-  //cv::erode(tmpMat2, tmpMat2, element);
+  //cv::morphologyEx(tmpMat, tmpMat, cv::MORPH_OPEN, element);
+  cv::erode(tmpMat, tmpMat, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
-  cv::ellipse(tmpMat2, seedPoint, cv::Size(roi.width * 0.20, roi.height * 0.20), 0, 0, 360, cv::Scalar( 255, 255, 255), -1); // create white spot
-  cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
+  cv::ellipse(tmpMat, seedPoint, cv::Size(roi.width * 0.20, roi.height * 0.20), 0, 0, 360, cv::Scalar( 255, 255, 255), -1); // create white spot
+  cv::floodFill(tmpMat, seedPoint, cv::Scalar(128,128,128));
 
   /*
   cv::MSER mser;
@@ -313,10 +280,11 @@ void unsharpMask(cv::Mat& im)
   // TODO: wrap with findContours()
 
   // flip the preview
-  //cv::flip(tmpMat2, mat, 1);
+  cv::flip(tmpMat, tmpMat, 1);
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
-  return MatToUIImage(tmpMat2);
+  //cv::cvtColor(tmpMat, tmpMat, CV_BGR2RGB);
+  return MatToUIImage(tmpMat);
 }
 
 @end
