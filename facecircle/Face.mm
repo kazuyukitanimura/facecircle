@@ -96,23 +96,11 @@
   mat.create(h, w, CV_8UC1);
   for (uint32_t i = 0; i < h; i++) {
     for (uint32_t j = 0; j < w; j++) {
-      // Y = ( (  66 * R + 129 * G +  25 * B + 128) >> 8) +  16
-      // U = ( ( -38 * R -  74 * G + 112 * B + 128) >> 8) + 128
-      // V = ( ( 112 * R -  94 * G -  18 * B + 128) >> 8) + 128
-      // R = clip(( 298 * C           + 409 * E + 128) >> 8)
-      // G = clip(( 298 * C - 100 * D - 208 * E + 128) >> 8)
-      // B = clip(( 298 * C + 516 * D           + 128) >> 8)
       uint32_t t = (i >> 1) * w + (j & -2); // TODO upconvert
       uint32_t y = yDataAddress[i * w + j]; // 16 - 235
       uint32_t u = uvDataAddress[t]; // 16 -240
       uint32_t v = uvDataAddress[t + 1]; // 16 -240
-      uint32_t C = y - 16;
-      uint32_t D = u - 128;
-      uint32_t E = v - 128;
-      uint32_t R = 0xFF & (( 298 * C           + 409 * E + 128) >> 8);
-      uint32_t G = 0xFF & (( 298 * C - 100 * D - 208 * E + 128) >> 8);
-      uint32_t B = 0xFF & (( 298 * C + 516 * D           + 128) >> 8);
-      mat.data[(i + 1) * w - j - 1] = C + (v >> 3) + (u >> 6);// + (R >> 3) - (G >> 7) + (B >> 6); // adjust by color
+      mat.data[(i + 1) * w - j - 1] = y;
     }
   }
 
@@ -125,6 +113,185 @@
 {
   cv::Mat trans_mat = (cv::Mat_<double>(2,3) << 1, 0, offsetx, 0, 1, offsety);
   cv::warpAffine(mat,mat,trans_mat,mat.size());
+}
+
+- (void)regressionFilter:(cv::Mat &)src toMat:(cv::Mat &)dst nraito:(double)nraito;
+{
+  const int type = src.type(), depth = CV_MAT_DEPTH(type), cn = CV_MAT_CN(type);
+  const cv::Size size = src.size();
+
+  CV_Assert(depth == CV_8U);
+  dst.create(cv::Size(src.cols, src.rows), CV_8U);
+
+  int b_size = cvFloor(sqrt(src.cols * src.cols + src.rows * src.rows) * nraito);
+  if (~b_size & 1) {
+    b_size |= 1; // force b_size to be a odd number
+  }
+
+  if (b_size < 2 || b_size * 2 - 1 > src.cols || b_size * 2 - 1 > src.rows) {
+    for (uint32_t i = 0; i < src.rows * src.cols; i++) {
+      dst.data[i] = src.data[i];
+    }
+    return;
+  }
+
+  for (uint32_t i = 0; i < src.rows; i++) {
+    int sum_x = 0;
+    int sum_y = 0;
+    int sum_xy = 0;
+    int sum_x2 = 0;
+    int a_num_buf[b_size]; // n * SUM_xy - SUM_x * SUM_y
+    int b_num_buf[b_size]; // SUM_x * SUM_y - SUM_xy * SUM_x
+    int den_buf[b_size]; // n * SUM_x^2 - (SUM_x)^2
+    for (uint32_t x = 0; x < src.cols; x++) {
+      uint32_t y = src.at<uchar>(i, x);
+      sum_x += x;
+      sum_y += y;
+      sum_xy += x * y;
+      sum_x2 += x * x;
+      if (x < b_size - 1) {
+        dst.at<uchar>(i, x) = src.at<uchar>(i, x);
+        continue;
+      }
+
+      uint32_t pos = x % b_size;
+      int a_r;
+      int b_r;
+      int den_r;
+      a_r = a_num_buf[pos] = b_size * sum_xy - sum_x * sum_y;
+      b_r = b_num_buf[pos] = sum_x2 * sum_y - sum_xy * sum_x;
+      den_r = den_buf[pos] = b_size * sum_x2 - sum_x * sum_x;
+
+      // for the next loop
+      uint32_t old_x = x + 1 - b_size;
+      uint32_t old_y = src.at<uchar>(i, old_x);
+      sum_x -= old_x;
+      sum_y -= old_y;
+      sum_xy -= old_x * old_y;
+      sum_x2 -= old_x * old_x;
+
+      if (x < b_size * 2 - 2) {
+        continue;
+      }
+
+      // y = ax + b;
+      int focus_x = x - b_size + 1;
+      // left
+      uint32_t pos_l = (x - b_size + 1) % b_size;
+      int a_l = a_num_buf[pos_l];
+      int den_l = den_buf[pos_l];
+      int estimate_l = (a_l * focus_x + b_num_buf[pos_l]) / den_l;
+      // center
+      uint32_t pos_c = (x - b_size / 2) % b_size;
+      int a_c = a_num_buf[pos_c];
+      int den_c = den_buf[pos_c];
+      int estimate_c = (a_c * focus_x + b_num_buf[pos_c]) / den_c;
+      // right
+      int estimate_r = (a_r * focus_x + b_r) / den_r;
+
+      //dst.at<uchar>(i, focus_x) = abs(estimate_l - estimate_r) / abs(a_c / den_c) * b_size;
+
+      bool edge = false;
+      double a_l_d = a_l/den_l;
+      double a_c_d = a_c/den_c;
+      double a_r_d = a_r/den_r;
+      edge |= (estimate_r > estimate_l && estimate_l > estimate_c && a_l_d > a_c_d && a_c_d > a_r_d && a_l_d > 0 && a_c_d > 0);
+      edge |= (estimate_r < estimate_l && estimate_l < estimate_c && a_l_d < a_c_d && a_c_d < a_r_d && a_l_d < 0 && a_c_d < 0);
+      edge |= (estimate_l > estimate_r && estimate_r > estimate_c && a_r_d > a_c_d && a_c_d > a_l_d && a_r_d > 0 && a_c_d > 0);
+      edge |= (estimate_l < estimate_r && estimate_r < estimate_c && a_r_d < a_c_d && a_c_d < a_l_d && a_r_d < 0 && a_c_d < 0);
+      dst.at<uchar>(i, focus_x) = edge? 0: 255;
+
+      /*
+      uint8_t thirtyOne = sizeof(int) * CHAR_BIT - 1;
+      if (estimate_l < estimate_c && estimate_c < estimate_r) {
+        if (estimate_c - estimate_l < estimate_r - estimate_c && (a_l ^ den_l) >> thirtyOne && (a_c ^ den_c) >> thirtyOne) {
+          // detected
+        } else if ((a_c ^ den_c) >> thirtyOne && (a_r ^ den_r) >> thirtyOne) {
+
+        }
+      } else if (estimate_l > estimate_c && estimate_c > estimate_r) {
+      } else {
+        *(dst_row + x) = 0; // not edge
+      }*/
+    }
+    for (uint32_t x = src.cols - b_size + 1; x < src.cols; x++) {
+      dst.at<uchar>(i, x) = src.at<uchar>(i, x);
+    }
+  }
+
+  for (uint32_t i = 0; i < src.cols; i++) {
+    int sum_x = 0;
+    int sum_y = 0;
+    int sum_xy = 0;
+    int sum_x2 = 0;
+    int a_num_buf[b_size]; // n * SUM_xy - SUM_x * SUM_y
+    int b_num_buf[b_size]; // SUM_x * SUM_y - SUM_xy * SUM_x
+    int den_buf[b_size]; // n * SUM_x^2 - (SUM_x)^2
+    for (uint32_t x = 0; x < src.rows; x++) {
+      uint32_t y = src.at<uchar>(x, i);
+      sum_x += x;
+      sum_y += y;
+      sum_xy += x * y;
+      sum_x2 += x * x;
+      if (x < b_size - 1) {
+        dst.at<uchar>(x, i) = src.at<uchar>(x, i);
+        continue;
+      }
+
+      uint32_t pos = x % b_size;
+      int a_r;
+      int b_r;
+      int den_r;
+      a_r = a_num_buf[pos] = b_size * sum_xy - sum_x * sum_y;
+      b_r = b_num_buf[pos] = sum_x2 * sum_y - sum_xy * sum_x;
+      den_r = den_buf[pos] = b_size * sum_x2 - sum_x * sum_x;
+
+      // for the next loop
+      uint32_t old_x = x + 1 - b_size;
+      uint32_t old_y = src.at<uchar>(old_x, i);
+      sum_x -= old_x;
+      sum_y -= old_y;
+      sum_xy -= old_x * old_y;
+      sum_x2 -= old_x * old_x;
+
+      if (x < b_size * 2 - 2) {
+        continue;
+      }
+
+      // y = ax + b;
+      int focus_x = x - b_size + 1;
+      // left
+      uint32_t pos_l = (x - b_size + 1) % b_size;
+      int a_l = a_num_buf[pos_l];
+      int den_l = den_buf[pos_l];
+      int estimate_l = (a_l * focus_x + b_num_buf[pos_l]) / den_l;
+      // center
+      uint32_t pos_c = (x - b_size / 2) % b_size;
+      int a_c = a_num_buf[pos_c];
+      int den_c = den_buf[pos_c];
+      int estimate_c = (a_c * focus_x + b_num_buf[pos_c]) / den_c;
+      // right
+      int estimate_r = (a_r * focus_x + b_r) / den_r;
+
+      //dst.at<uchar>(focus_x, i) += abs(estimate_l - estimate_r) / abs(a_c / den_c) * b_size;
+
+      bool edge = false;
+      double a_l_d = a_l/den_l;
+      double a_c_d = a_c/den_c;
+      double a_r_d = a_r/den_r;
+      edge |= (estimate_r > estimate_l && estimate_l > estimate_c && a_l_d > a_c_d && a_c_d > a_r_d && a_l_d > 0 && a_c_d > 0);
+      edge |= (estimate_r < estimate_l && estimate_l < estimate_c && a_l_d < a_c_d && a_c_d < a_r_d && a_l_d < 0 && a_c_d < 0);
+      edge |= (estimate_l > estimate_r && estimate_r > estimate_c && a_r_d > a_c_d && a_c_d > a_l_d && a_r_d > 0 && a_c_d > 0);
+      edge |= (estimate_l < estimate_r && estimate_r < estimate_c && a_r_d < a_c_d && a_c_d < a_l_d && a_r_d < 0 && a_c_d < 0);
+      dst.at<uchar>(focus_x, i) &= edge? 0: 255;
+
+    }
+    for (uint32_t x = src.rows - b_size + 1; x < src.rows; x++) {
+      dst.at<uchar>(x, i) = src.at<uchar>(x, i);
+    }
+  }
+
+
 }
 
 // http://schima.hatenablog.com/entry/2013/10/25/202418
@@ -230,7 +397,6 @@ void unsharpMask(cv::Mat& im)
     roi.width = MAX(MIN(estimated.at<float>(2), mat.cols - roi.x), 1);
     roi.height = MAX(MIN(estimated.at<float>(3), mat.rows - roi.y), 1);
     tmpMat = mat(roi);
-    // tmpMat = mat(cv::Rect(r.x, newY, r.width, newHeight));
 
     // Exposure settings
     // TODO change this to observer for device.adjustingExposure
@@ -251,14 +417,17 @@ void unsharpMask(cv::Mat& im)
     }
   }
 
+  cv::Mat tmpMat2, tmpMat3, tmpMat4;
+  //[self regressionFilter:tmpMat toMat:tmpMat2 nraito:0.04];
   //cv::medianBlur(tmpMat, tmpMat, 9);
   //cv::GaussianBlur(tmpMat, tmpMat, cv::Size(3,3), 0);
   //cv::Mat matMat;
   //cv::bilateralFilter(tmpMat, matMat, 15, 80, 80);
   //cv::adaptiveBilateralFilter(tmpMat, matMat, cv::Size(3,3), 15);
   //cv::equalizeHist(tmpMat, tmpMat);
-  //cv::Laplacian(tmpMat, tmpMat, CV_8UC1);
-  //cv::Canny(tmpMat, tmpMat, 200, 180);
+  //cv::Laplacian(tmpMat, tmpMat2, CV_8UC1);
+  double threshold = cv::threshold(tmpMat, tmpMat3, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU) * 1.5;
+  cv::Canny(tmpMat, tmpMat2, threshold * 0.6, threshold, 3, true);
   //cv::Mat sobel_x, sobel_y;
   //cv::Sobel(tmpMat, sobel_x, CV_8UC1, 1, 0);
   //cv::convertScaleAbs(sobel_x, sobel_x);
@@ -268,21 +437,98 @@ void unsharpMask(cv::Mat& im)
   //cv::Scharr(tmpMat, tmpMat, CV_8UC1, 1, 0);
   //cv::Mat tmpMat2;
   //cv::Sobel(tmpMat, tmpMat2, CV_8UC1, 1, 0);
-  //cv::bitwise_not(tmpMat, tmpMat);
+  cv::bitwise_not(tmpMat2, tmpMat3);
   //cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 13, 13);
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+  //cv::threshold(tmpMat2, tmpMat3, 200, 255, CV_THRESH_BINARY_INV);
+  //cv::bitwise_or(tmpMat2, tmpMat3, tmpMat2);
   //cv::distanceTransform(tmpMat, tmpMat, CV_DIST_L2, 5);
   //unsharpMask(tmpMat);
-  cv::Mat tmpMat2;
-  sauvolaFast(tmpMat, tmpMat2, 15, 0.05, 100);
-  int morph_size = 1;
+  //sauvolaFast(tmpMat, tmpMat4, 15, 0.05, 100);
+  //cv::bitwise_and(tmpMat4, tmpMat3, tmpMat2);
+
+/*
+  tmpMat3.create(tmpMat2.size(), CV_8U);
+  for (uint32_t y = 1; y < tmpMat2.rows-1; y++) {
+    for (uint32_t x = 1; x < tmpMat2.cols-1; x++) {
+      tmpMat3.at<uchar>(y, x) = (tmpMat2.at<uchar>(y-1, x) & tmpMat2.at<uchar>(y, x-1) & tmpMat2.at<uchar>(y+1, x) & tmpMat2.at<uchar>(y, x+1)) | tmpMat2.at<uchar>(y, x);
+    }
+  }
+ */
+  for (uint32_t y = 1; y < tmpMat3.rows-1; y++) {
+    for (uint32_t x = 1; x < tmpMat3.cols-1; x++) {
+      // 0 1 2
+      // 7   3
+      // 6 5 4
+      uchar dot0 = tmpMat3.at<uchar>(y-1, x-1);
+      uchar dot1 = tmpMat3.at<uchar>(y-1, x);
+      uchar dot2 = tmpMat3.at<uchar>(y-1, x+1);
+      uchar dot3 = tmpMat3.at<uchar>(y, x+1);
+      uchar dot4 = tmpMat3.at<uchar>(y+1, x+1);
+      uchar dot5 = tmpMat3.at<uchar>(y+1, x);
+      uchar dot6 = tmpMat3.at<uchar>(y+1, x-1);
+      uchar dot7 = tmpMat3.at<uchar>(y, x-1);
+      tmpMat2.at<uchar>(y, x) = tmpMat3.at<uchar>(y, x)
+      & (dot1 | dot5)
+      & (dot3 | dot7)
+      & (dot0 | dot4)
+      & (dot2 | dot6)
+      & (dot1 | dot4)
+      & (dot1 | dot6)
+      & (dot0 | dot5)
+      & (dot2 | dot5)
+      & (dot0 | dot3)
+      & (dot3 | dot6)
+      & (dot2 | dot7)
+      & (dot4 | dot7)
+      ;
+      /*
+      & (dot1 | dot3 | dot5 | dot7)
+      & (dot0 | dot7 | dot2 | dot3)
+      & (dot6 | dot7 | dot4 | dot3)
+      & (dot0 | dot5 | dot1 | dot6)
+      & (dot2 | dot1 | dot5 | dot4)
+       */
+    }
+  }
+  for (uint32_t y = 1; y < tmpMat2.rows-2; y++) {
+    for (uint32_t x = 0; x < tmpMat2.cols; x++) {
+      uchar dot0 = tmpMat2.at<uchar>(y-1, x);
+      uchar dot1 = tmpMat2.at<uchar>(y, x);
+      uchar dot2 = tmpMat2.at<uchar>(y+1, x);
+      uchar dot3 = tmpMat2.at<uchar>(y+2, x);
+      tmpMat3.at<uchar>(y, x) = dot1 & (dot0 | dot3);
+      tmpMat3.at<uchar>(y+1, x) = dot2 & (dot0 | dot3);
+    }
+  }
+
+
+  cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
+  cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.20, roi.height * 0.20), 0, 0, 360, cv::Scalar(255, 255, 255), -1);
+  //cv::floodFill(tmpMat3, seedPoint, cv::Scalar(0,0,0));
+  cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128,128,128));
+
+  cv::compare(tmpMat3, cv::Scalar(128,128,128), tmpMat4,cv::CMP_EQ);
+
+  int morph_size = 2;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
-  cv::morphologyEx(tmpMat2, tmpMat2, cv::MORPH_OPEN, element);
+  cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
-  cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
-  cv::ellipse(tmpMat2, seedPoint, cv::Size(roi.width * 0.20, roi.height * 0.20), 0, 0, 360, cv::Scalar( 255, 255, 255), -1); // create white spot
-  cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
+
+  std::vector<std::vector<cv::Point> > contours;
+  cv::findContours(tmpMat4, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+  drawContours(tmpMat2, contours, -1, cv::Scalar(128,128,128), CV_FILLED);
+
+  //cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
+  cv::compare(tmpMat2, cv::Scalar(128,128,128), tmpMat4,cv::CMP_EQ);
+  tmpMat3.setTo(cv::Scalar(255,255,255));
+  tmpMat.copyTo(tmpMat3, tmpMat4);
+
+
+  //cv::floodFill(tmpMat2, seedPoint, cv::Scalar(0,0,0));
+  //cv::floodFill(tmpMat2, seedPoint, cv::Scalar(255,255,255));
+
 
   /*
   cv::MSER mser;
@@ -315,8 +561,25 @@ void unsharpMask(cv::Mat& im)
   // flip the preview
   //cv::flip(tmpMat2, mat, 1);
 
+  // perspective transform
+  cv::Point2f srcQuad[4], dstQuad[4];
+  // before transform
+  int tilt = 16;
+  srcQuad[0] = cv::Point2f(-tilt, 0); // upper left
+  srcQuad[1] = cv::Point2f(tmpMat3.cols + tilt, 0); // upper right
+  srcQuad[2] = cv::Point2f(tmpMat3.cols - tilt, tmpMat3.rows); // lower right
+  srcQuad[3] = cv::Point2f(tilt, tmpMat3.rows); // lower left
+  // after trasnform
+  dstQuad[0] = cv::Point2f(0, tilt); // upper left
+  dstQuad[1] = cv::Point2f(tmpMat3.cols, tilt); // upper right
+  dstQuad[2] = cv::Point2f(tmpMat3.cols - tilt, tmpMat3.rows); // lower right
+  dstQuad[3] = cv::Point2f(tilt, tmpMat3.rows); // lower left
+  // transform
+  cv::Mat warp_matrix = cv::getPerspectiveTransform(srcQuad, dstQuad);
+  cv::warpPerspective(tmpMat3, tmpMat4, warp_matrix, tmpMat3.size());
+
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
-  return MatToUIImage(tmpMat2);
+  return MatToUIImage(tmpMat4);
 }
 
 @end
