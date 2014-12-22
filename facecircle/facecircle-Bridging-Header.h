@@ -22,6 +22,6 @@
 void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, double r);
 void unsharpMask(cv::Mat& im);
 #endif
-- (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer camera:(AVCaptureDevice*)device;
+- (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer camera:(AVCaptureDevice*)device orientation:(UIInterfaceOrientation)orientation;
 
 @end

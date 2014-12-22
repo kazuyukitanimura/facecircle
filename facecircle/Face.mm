@@ -349,7 +349,7 @@ void unsharpMask(cv::Mat& im)
   cv::addWeighted(im, 1.5, tmp, -0.5, 0, im);
 }
 
-- (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer camera:(AVCaptureDevice*)device
+- (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer camera:(AVCaptureDevice*)device orientation:(UIInterfaceOrientation)orientation
 {
   // create grayscale TODO: is it possible to process only updated pixels not the entire image?
   cv::Mat mat;
@@ -564,16 +564,26 @@ void unsharpMask(cv::Mat& im)
   // perspective transform
   cv::Point2f srcQuad[4], dstQuad[4];
   // before transform
-  int tilt = 16;
-  srcQuad[0] = cv::Point2f(-tilt, 0); // upper left
-  srcQuad[1] = cv::Point2f(tmpMat3.cols + tilt, 0); // upper right
-  srcQuad[2] = cv::Point2f(tmpMat3.cols - tilt, tmpMat3.rows); // lower right
-  srcQuad[3] = cv::Point2f(tilt, tmpMat3.rows); // lower left
+  int tiltY = 0;
+  int tiltX = 0;
+  if (orientation == UIInterfaceOrientationPortrait) {
+    tiltY = 16;
+  } else if (orientation == UIInterfaceOrientationPortraitUpsideDown) {
+    tiltY = -16;
+  } else if (orientation == UIInterfaceOrientationLandscapeLeft) {
+    tiltX = -16;
+  } else if (orientation == UIInterfaceOrientationLandscapeRight) {
+    tiltX = 16;
+  }
+  srcQuad[0] = cv::Point2f(-tiltY, -tiltX); // upper left
+  srcQuad[1] = cv::Point2f(tmpMat3.cols + tiltY, tiltX); // upper right
+  srcQuad[2] = cv::Point2f(tmpMat3.cols - tiltY, tmpMat3.rows - tiltX); // lower right
+  srcQuad[3] = cv::Point2f(tiltY, tmpMat3.rows + tiltX); // lower left
   // after trasnform
-  dstQuad[0] = cv::Point2f(0, tilt); // upper left
-  dstQuad[1] = cv::Point2f(tmpMat3.cols, tilt); // upper right
-  dstQuad[2] = cv::Point2f(tmpMat3.cols - tilt, tmpMat3.rows); // lower right
-  dstQuad[3] = cv::Point2f(tilt, tmpMat3.rows); // lower left
+  dstQuad[0] = cv::Point2f(tiltX, tiltY); // upper left
+  dstQuad[1] = cv::Point2f(tmpMat3.cols + tiltX, tiltY); // upper right
+  dstQuad[2] = cv::Point2f(tmpMat3.cols - tiltY + tiltX, tmpMat3.rows); // lower right
+  dstQuad[3] = cv::Point2f(tiltY + tiltX, tmpMat3.rows); // lower left
   // transform
   cv::Mat warp_matrix = cv::getPerspectiveTransform(srcQuad, dstQuad);
   cv::warpPerspective(tmpMat3, tmpMat4, warp_matrix, tmpMat3.size());
