@@ -518,7 +518,7 @@ void unsharpMask(cv::Mat& im)
 
   cv::compare(tmpMat3, cv::Scalar(128,128,128), tmpMat4,cv::CMP_EQ);
 
-  int morph_size = 2;
+  int morph_size = 3;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
   cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
   //cv::erode(tmpMat2, tmpMat2, element);
