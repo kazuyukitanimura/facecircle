@@ -505,7 +505,7 @@ void unsharpMask(cv::Mat& im)
 
 
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
-  cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.20, roi.height * 0.20), 0, 0, 360, cv::Scalar(255, 255, 255), -1);
+  cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), -1);
   //cv::floodFill(tmpMat3, seedPoint, cv::Scalar(0,0,0));
   cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128,128,128));
 
