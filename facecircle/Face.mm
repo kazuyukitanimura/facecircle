@@ -567,23 +567,24 @@ void unsharpMask(cv::Mat& im)
   int tiltY = 0;
   int tiltX = 0;
   if (orientation == UIInterfaceOrientationPortrait) {
-    tiltY = 16;
+    tiltY = 10;
   } else if (orientation == UIInterfaceOrientationPortraitUpsideDown) {
-    tiltY = -16;
+    tiltY = -10;
   } else if (orientation == UIInterfaceOrientationLandscapeLeft) {
-    tiltX = -16;
+    tiltX = -6;
   } else if (orientation == UIInterfaceOrientationLandscapeRight) {
-    tiltX = 16;
+    tiltX = 6;
   }
   srcQuad[0] = cv::Point2f(-tiltY, -tiltX); // upper left
   srcQuad[1] = cv::Point2f(tmpMat3.cols + tiltY, tiltX); // upper right
   srcQuad[2] = cv::Point2f(tmpMat3.cols - tiltY, tmpMat3.rows - tiltX); // lower right
   srcQuad[3] = cv::Point2f(tiltY, tmpMat3.rows + tiltX); // lower left
   // after trasnform
-  dstQuad[0] = cv::Point2f(tiltX, tiltY); // upper left
-  dstQuad[1] = cv::Point2f(tmpMat3.cols + tiltX, tiltY); // upper right
-  dstQuad[2] = cv::Point2f(tmpMat3.cols - tiltY + tiltX, tmpMat3.rows); // lower right
-  dstQuad[3] = cv::Point2f(tiltY + tiltX, tmpMat3.rows); // lower left
+  tiltX = abs(tiltX);
+  dstQuad[0] = cv::Point2f(2 * tiltX, 2 * tiltY); // upper left
+  dstQuad[1] = cv::Point2f(tmpMat3.cols - 2 * tiltX, 2 * tiltY); // upper right
+  dstQuad[2] = cv::Point2f(tmpMat3.cols - 2 * tiltX, tmpMat3.rows - 2 * tiltY); // lower right
+  dstQuad[3] = cv::Point2f(2 * tiltX, tmpMat3.rows - 2 * tiltY); // lower left
   // transform
   cv::Mat warp_matrix = cv::getPerspectiveTransform(srcQuad, dstQuad);
   cv::warpPerspective(tmpMat3, tmpMat4, warp_matrix, tmpMat3.size());
