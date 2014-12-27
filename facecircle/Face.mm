@@ -417,7 +417,12 @@ void unsharpMask(cv::Mat& im)
     }
   }
 
+  // adaptive histogram equalization
+  // http://docs.opencv.org/trunk/doc/py_tutorials/py_imgproc/py_histograms/py_histogram_equalization/py_histogram_equalization.html
+  cv::createCLAHE(4.0, cv::Size(4, 4))->apply(tmpMat, tmpMat);
+
   cv::Mat tmpMat2, tmpMat3, tmpMat4;
+  //cv::createCLAHE()->apply(tmpMat, tmpMat);
   //[self regressionFilter:tmpMat toMat:tmpMat2 nraito:0.04];
   //cv::medianBlur(tmpMat, tmpMat, 9);
   //cv::GaussianBlur(tmpMat, tmpMat, cv::Size(3,3), 0);
@@ -427,8 +432,10 @@ void unsharpMask(cv::Mat& im)
   //cv::equalizeHist(tmpMat, tmpMat);
   //cv::Laplacian(tmpMat, tmpMat2, CV_8UC1);
   //double threshold = cv::threshold(tmpMat, tmpMat3, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU) * 1.5;
-  double threshold = 200;
-  cv::Canny(tmpMat, tmpMat2, threshold * 0.5, threshold, 3, true);
+  double minVal, maxVal;
+  cv::minMaxLoc(tmpMat(cv::Rect(roi.width*0.3, roi.height*0.3, roi.width*0.4, roi.height*0.4)), &minVal, &maxVal);
+  double threshold = maxVal - minVal;
+  cv::Canny(tmpMat, tmpMat2, threshold * 0.6, threshold, 3, true);
   //cv::Mat sobel_x, sobel_y;
   //cv::Sobel(tmpMat, sobel_x, CV_8UC1, 1, 0);
   //cv::convertScaleAbs(sobel_x, sobel_x);
@@ -505,7 +512,7 @@ void unsharpMask(cv::Mat& im)
 
 
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
-  cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), -1);
+  cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), CV_FILLED);
   //cv::floodFill(tmpMat3, seedPoint, cv::Scalar(0,0,0));
   cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128,128,128));
 
