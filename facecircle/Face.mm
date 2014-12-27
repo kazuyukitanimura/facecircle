@@ -426,8 +426,9 @@ void unsharpMask(cv::Mat& im)
   //cv::adaptiveBilateralFilter(tmpMat, matMat, cv::Size(3,3), 15);
   //cv::equalizeHist(tmpMat, tmpMat);
   //cv::Laplacian(tmpMat, tmpMat2, CV_8UC1);
-  double threshold = cv::threshold(tmpMat, tmpMat3, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU) * 1.5;
-  cv::Canny(tmpMat, tmpMat2, threshold * 0.6, threshold, 3, true);
+  //double threshold = cv::threshold(tmpMat, tmpMat3, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU) * 1.5;
+  double threshold = 200;
+  cv::Canny(tmpMat, tmpMat2, threshold * 0.5, threshold, 3, true);
   //cv::Mat sobel_x, sobel_y;
   //cv::Sobel(tmpMat, sobel_x, CV_8UC1, 1, 0);
   //cv::convertScaleAbs(sobel_x, sobel_x);
