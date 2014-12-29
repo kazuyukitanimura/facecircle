@@ -24,7 +24,7 @@
 
   // import cascading file
   NSBundle *bundle = [NSBundle mainBundle];
-  NSString *path = [bundle pathForResource:@"haarcascade_frontalface_alt" ofType:@"xml"];
+  NSString *path = [bundle pathForResource:@"lbpcascade_frontalface" ofType:@"xml"];
   std::string cascadeName = (char *)[path UTF8String];
 
   if (!cascade.load(cascadeName)) {
