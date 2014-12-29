@@ -19,7 +19,6 @@
 #ifdef __cplusplus
 - (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toGrayscaleMat:(cv::Mat &)mat;
 - (void)shiftImage:(cv::Mat &)img x:(int)offsetx y:(int)offsety;
-- (void)regressionFilter:(cv::Mat &)src toMat:(cv::Mat &)dst nraito:(double)nraito;
 - (void)tilt:(cv::Mat &)src toMat:(cv::Mat &)dst orientation:(UIInterfaceOrientation)orientation;
 - (void)connectDots:(cv::Mat &)mat;
 void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, double r);
