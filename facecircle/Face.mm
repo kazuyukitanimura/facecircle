@@ -422,13 +422,11 @@ void unsharpMask(cv::Mat& im)
   cv::createCLAHE(4.0, cv::Size(4, 4))->apply(tmpMat, tmpMat);
 
   cv::Mat tmpMat2, tmpMat3, tmpMat4;
-  //cv::createCLAHE()->apply(tmpMat, tmpMat);
   //[self regressionFilter:tmpMat toMat:tmpMat2 nraito:0.04];
   //cv::medianBlur(tmpMat, tmpMat, 9);
   //cv::GaussianBlur(tmpMat, tmpMat, cv::Size(3,3), 0);
-  //cv::Mat matMat;
-  //cv::bilateralFilter(tmpMat, matMat, 15, 80, 80);
-  //cv::adaptiveBilateralFilter(tmpMat, matMat, cv::Size(3,3), 15);
+  //cv::bilateralFilter(tmpMat, tmpMat4, 15, 80, 80);
+  //cv::adaptiveBilateralFilter(tmpMat, tmpMat4, cv::Size(3,3), 15);
   //cv::equalizeHist(tmpMat, tmpMat);
   //cv::Laplacian(tmpMat, tmpMat2, CV_8UC1);
   //double threshold = cv::threshold(tmpMat, tmpMat3, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU) * 1.5;
@@ -489,14 +487,12 @@ void unsharpMask(cv::Mat& im)
       & (dot3 | dot6)
       & (dot2 | dot7)
       & (dot4 | dot7)
+      //& (dot1 | dot3 | dot5 | dot7)
+      //& (dot0 | dot7 | dot2 | dot3)
+      //& (dot6 | dot7 | dot4 | dot3)
+      //& (dot0 | dot5 | dot1 | dot6)
+      //& (dot2 | dot1 | dot5 | dot4)
       ;
-      /*
-      & (dot1 | dot3 | dot5 | dot7)
-      & (dot0 | dot7 | dot2 | dot3)
-      & (dot6 | dot7 | dot4 | dot3)
-      & (dot0 | dot5 | dot1 | dot6)
-      & (dot2 | dot1 | dot5 | dot4)
-       */
     }
   }
   for (uint32_t y = 1; y < tmpMat2.rows-2; y++) {
