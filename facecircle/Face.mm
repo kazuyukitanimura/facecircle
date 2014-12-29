@@ -429,6 +429,8 @@ void unsharpMask(cv::Mat& im)
   //cv::adaptiveBilateralFilter(tmpMat, tmpMat4, cv::Size(3,3), 15);
   //cv::equalizeHist(tmpMat, tmpMat);
   //cv::Laplacian(tmpMat, tmpMat2, CV_8UC1);
+  //cv::cvtColor(tmpMat, tmpMat, CV_GRAY2BGR);
+  //cv::pyrMeanShiftFiltering(tmpMat, tmpMat4, 15, 40);
   //double threshold = cv::threshold(tmpMat, tmpMat3, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU) * 1.5;
   double minVal, maxVal;
   cv::minMaxLoc(tmpMat(cv::Rect(roi.width*0.3, roi.height*0.3, roi.width*0.4, roi.height*0.4)), &minVal, &maxVal);
