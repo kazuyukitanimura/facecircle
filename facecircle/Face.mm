@@ -571,7 +571,8 @@ void unsharpMask(cv::Mat& im)
   cv::findContours(tmpMat4, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
   drawContours(tmpMat2, contours, -1, cv::Scalar(128,128,128), CV_FILLED);
 
-  cv::compare(tmpMat2, cv::Scalar(128,128,128), tmpMat4,cv::CMP_EQ);
+  cv::compare(tmpMat2, cv::Scalar(128,128,128), tmpMat4, cv::CMP_EQ);
+  cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
   tmpMat3.setTo(cv::Scalar(255,255,255));
   tmpMat.copyTo(tmpMat3, tmpMat4);
 
