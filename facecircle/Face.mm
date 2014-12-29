@@ -145,6 +145,55 @@
   cv::warpPerspective(src, dst, warp_matrix, src.size());
 }
 
+- (void)connectDots:(cv::Mat &)mat
+{
+  cv::Mat tmpMat(mat.size(), mat.type());
+  for (uint32_t y = 1; y < mat.rows-1; y++) {
+    for (uint32_t x = 1; x < mat.cols-1; x++) {
+      // 0 1 2
+      // 7   3
+      // 6 5 4
+      uchar dot0 = mat.at<uchar>(y-1, x-1);
+      uchar dot1 = mat.at<uchar>(y-1, x);
+      uchar dot2 = mat.at<uchar>(y-1, x+1);
+      uchar dot3 = mat.at<uchar>(y, x+1);
+      uchar dot4 = mat.at<uchar>(y+1, x+1);
+      uchar dot5 = mat.at<uchar>(y+1, x);
+      uchar dot6 = mat.at<uchar>(y+1, x-1);
+      uchar dot7 = mat.at<uchar>(y, x-1);
+      tmpMat.at<uchar>(y, x) = mat.at<uchar>(y, x)
+      & (dot1 | dot5)
+      & (dot3 | dot7)
+      & (dot0 | dot4)
+      & (dot2 | dot6)
+      & (dot1 | dot4)
+      & (dot1 | dot6)
+      & (dot0 | dot5)
+      & (dot2 | dot5)
+      & (dot0 | dot3)
+      & (dot3 | dot6)
+      & (dot2 | dot7)
+      & (dot4 | dot7)
+      //& (dot1 | dot3 | dot5 | dot7)
+      //& (dot0 | dot7 | dot2 | dot3)
+      //& (dot6 | dot7 | dot4 | dot3)
+      //& (dot0 | dot5 | dot1 | dot6)
+      //& (dot2 | dot1 | dot5 | dot4)
+      ;
+    }
+  }
+  for (uint32_t y = 1; y < tmpMat.rows-2; y++) {
+    for (uint32_t x = 0; x < tmpMat.cols; x++) {
+      uchar dot0 = tmpMat.at<uchar>(y-1, x);
+      uchar dot1 = tmpMat.at<uchar>(y, x);
+      uchar dot2 = tmpMat.at<uchar>(y+1, x);
+      uchar dot3 = tmpMat.at<uchar>(y+2, x);
+      mat.at<uchar>(y, x) = dot1 & (dot0 | dot3);
+      mat.at<uchar>(y+1, x) = dot2 & (dot0 | dot3);
+    }
+  }
+}
+
 - (void)regressionFilter:(cv::Mat &)src toMat:(cv::Mat &)dst nraito:(double)nraito
 {
   const int type = src.type(), depth = CV_MAT_DEPTH(type), cn = CV_MAT_CN(type);
@@ -493,58 +542,13 @@ void unsharpMask(cv::Mat& im)
     }
   }
  */
-  for (uint32_t y = 1; y < tmpMat3.rows-1; y++) {
-    for (uint32_t x = 1; x < tmpMat3.cols-1; x++) {
-      // 0 1 2
-      // 7   3
-      // 6 5 4
-      uchar dot0 = tmpMat3.at<uchar>(y-1, x-1);
-      uchar dot1 = tmpMat3.at<uchar>(y-1, x);
-      uchar dot2 = tmpMat3.at<uchar>(y-1, x+1);
-      uchar dot3 = tmpMat3.at<uchar>(y, x+1);
-      uchar dot4 = tmpMat3.at<uchar>(y+1, x+1);
-      uchar dot5 = tmpMat3.at<uchar>(y+1, x);
-      uchar dot6 = tmpMat3.at<uchar>(y+1, x-1);
-      uchar dot7 = tmpMat3.at<uchar>(y, x-1);
-      tmpMat2.at<uchar>(y, x) = tmpMat3.at<uchar>(y, x)
-      & (dot1 | dot5)
-      & (dot3 | dot7)
-      & (dot0 | dot4)
-      & (dot2 | dot6)
-      & (dot1 | dot4)
-      & (dot1 | dot6)
-      & (dot0 | dot5)
-      & (dot2 | dot5)
-      & (dot0 | dot3)
-      & (dot3 | dot6)
-      & (dot2 | dot7)
-      & (dot4 | dot7)
-      //& (dot1 | dot3 | dot5 | dot7)
-      //& (dot0 | dot7 | dot2 | dot3)
-      //& (dot6 | dot7 | dot4 | dot3)
-      //& (dot0 | dot5 | dot1 | dot6)
-      //& (dot2 | dot1 | dot5 | dot4)
-      ;
-    }
-  }
-  for (uint32_t y = 1; y < tmpMat2.rows-2; y++) {
-    for (uint32_t x = 0; x < tmpMat2.cols; x++) {
-      uchar dot0 = tmpMat2.at<uchar>(y-1, x);
-      uchar dot1 = tmpMat2.at<uchar>(y, x);
-      uchar dot2 = tmpMat2.at<uchar>(y+1, x);
-      uchar dot3 = tmpMat2.at<uchar>(y+2, x);
-      tmpMat3.at<uchar>(y, x) = dot1 & (dot0 | dot3);
-      tmpMat3.at<uchar>(y+1, x) = dot2 & (dot0 | dot3);
-    }
-  }
-
+  [self connectDots:tmpMat3];
 
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
   cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), CV_FILLED);
-  //cv::floodFill(tmpMat3, seedPoint, cv::Scalar(0,0,0));
   cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128,128,128));
 
-  cv::compare(tmpMat3, cv::Scalar(128,128,128), tmpMat4,cv::CMP_EQ);
+  cv::compare(tmpMat3, cv::Scalar(128,128,128), tmpMat4, cv::CMP_EQ);
 
   int morph_size = 3;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
@@ -556,14 +560,9 @@ void unsharpMask(cv::Mat& im)
   cv::findContours(tmpMat4, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
   drawContours(tmpMat2, contours, -1, cv::Scalar(128,128,128), CV_FILLED);
 
-  //cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128,128,128));
   cv::compare(tmpMat2, cv::Scalar(128,128,128), tmpMat4,cv::CMP_EQ);
   tmpMat3.setTo(cv::Scalar(255,255,255));
   tmpMat.copyTo(tmpMat3, tmpMat4);
-
-
-  //cv::floodFill(tmpMat2, seedPoint, cv::Scalar(0,0,0));
-  //cv::floodFill(tmpMat2, seedPoint, cv::Scalar(255,255,255));
 
 
   /*
