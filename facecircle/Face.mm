@@ -369,8 +369,6 @@
       dst.at<uchar>(x, i) = src.at<uchar>(x, i);
     }
   }
-
-
 }
 
 // http://schima.hatenablog.com/entry/2013/10/25/202418
@@ -511,10 +509,6 @@ void unsharpMask(cv::Mat& im)
   //cv::cvtColor(tmpMat, tmpMat, CV_GRAY2BGR);
   //cv::pyrMeanShiftFiltering(tmpMat, tmpMat4, 15, 40);
   //double threshold = cv::threshold(tmpMat, tmpMat3, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU) * 1.5;
-  double minVal, maxVal;
-  cv::minMaxLoc(tmpMat(cv::Rect(roi.width*0.3, roi.height*0.3, roi.width*0.4, roi.height*0.4)), &minVal, &maxVal);
-  double threshold = maxVal - minVal;
-  cv::Canny(tmpMat, tmpMat2, threshold * 0.6, threshold, 3, true);
   //cv::Mat sobel_x, sobel_y;
   //cv::Sobel(tmpMat, sobel_x, CV_8UC1, 1, 0);
   //cv::convertScaleAbs(sobel_x, sobel_x);
@@ -524,7 +518,6 @@ void unsharpMask(cv::Mat& im)
   //cv::Scharr(tmpMat, tmpMat, CV_8UC1, 1, 0);
   //cv::Mat tmpMat2;
   //cv::Sobel(tmpMat, tmpMat2, CV_8UC1, 1, 0);
-  cv::bitwise_not(tmpMat2, tmpMat3);
   //cv::adaptiveThreshold(tmpMat, tmpMat, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 13, 13);
   //cv::threshold(tmpMat, tmpMat, 127, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
   //cv::threshold(tmpMat2, tmpMat3, 200, 255, CV_THRESH_BINARY_INV);
@@ -542,6 +535,24 @@ void unsharpMask(cv::Mat& im)
     }
   }
  */
+
+  /*
+  // https://github.com/subokita/Sandbox/tree/master/EfficientGraphBasedImageSegmentation
+  cv::cvtColor(tmpMat, tmpMat, CV_GRAY2BGR);
+  float sigma             = 0.5;      // For internal gaussian blurring usage only
+  float threshold         = 150;     // Bigger threshold means bigger clusters
+  int min_component_size  = 20;       // Weed out clusters that are smaller than this size
+  EGBS egbs;
+  egbs.applySegmentation(tmpMat, sigma, threshold, min_component_size);
+  tmpMat4 = egbs.recolor(false);
+  */
+
+  double minVal, maxVal;
+  cv::minMaxLoc(tmpMat(cv::Rect(roi.width*0.3, roi.height*0.3, roi.width*0.4, roi.height*0.4)), &minVal, &maxVal);
+  double threshold = maxVal - minVal;
+  cv::Canny(tmpMat, tmpMat2, threshold * 0.6, threshold, 3, true);
+  cv::bitwise_not(tmpMat2, tmpMat3);
+
   [self connectDots:tmpMat3];
 
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
@@ -563,7 +574,6 @@ void unsharpMask(cv::Mat& im)
   cv::compare(tmpMat2, cv::Scalar(128,128,128), tmpMat4,cv::CMP_EQ);
   tmpMat3.setTo(cv::Scalar(255,255,255));
   tmpMat.copyTo(tmpMat3, tmpMat4);
-
 
   /*
   cv::MSER mser;
