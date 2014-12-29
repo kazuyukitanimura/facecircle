@@ -114,8 +114,38 @@
   cv::Mat trans_mat = (cv::Mat_<double>(2,3) << 1, 0, offsetx, 0, 1, offsety);
   cv::warpAffine(mat,mat,trans_mat,mat.size());
 }
+- (void)tilt:(cv::Mat &)src toMat:(cv::Mat &)dst orientation:(UIInterfaceOrientation)orientation
+{
+  // perspective transform
+  cv::Point2f srcQuad[4], dstQuad[4];
+  // before transform
+  int tiltY = 0;
+  int tiltX = 0;
+  if (orientation == UIInterfaceOrientationPortrait) {
+    tiltY = 10;
+  } else if (orientation == UIInterfaceOrientationPortraitUpsideDown) {
+    tiltY = -10;
+  } else if (orientation == UIInterfaceOrientationLandscapeLeft) {
+    tiltX = -6;
+  } else if (orientation == UIInterfaceOrientationLandscapeRight) {
+    tiltX = 6;
+  }
+  srcQuad[0] = cv::Point2f(-tiltY, -tiltX); // upper left
+  srcQuad[1] = cv::Point2f(src.cols + tiltY, tiltX); // upper right
+  srcQuad[2] = cv::Point2f(src.cols - tiltY, src.rows - tiltX); // lower right
+  srcQuad[3] = cv::Point2f(tiltY, src.rows + tiltX); // lower left
+  // after trasnform
+  tiltX = abs(tiltX);
+  dstQuad[0] = cv::Point2f(2 * tiltX, 2 * tiltY); // upper left
+  dstQuad[1] = cv::Point2f(src.cols - 2 * tiltX, 2 * tiltY); // upper right
+  dstQuad[2] = cv::Point2f(src.cols - 2 * tiltX, src.rows - 2 * tiltY); // lower right
+  dstQuad[3] = cv::Point2f(2 * tiltX, src.rows - 2 * tiltY); // lower left
+  // transform
+  cv::Mat warp_matrix = cv::getPerspectiveTransform(srcQuad, dstQuad);
+  cv::warpPerspective(src, dst, warp_matrix, src.size());
+}
 
-- (void)regressionFilter:(cv::Mat &)src toMat:(cv::Mat &)dst nraito:(double)nraito;
+- (void)regressionFilter:(cv::Mat &)src toMat:(cv::Mat &)dst nraito:(double)nraito
 {
   const int type = src.type(), depth = CV_MAT_DEPTH(type), cn = CV_MAT_CN(type);
   const cv::Size size = src.size();
@@ -562,38 +592,10 @@ void unsharpMask(cv::Mat& im)
   cv::grabCut(tmpMat, tmpMat, cv::Rect(previousROI), bgdModel, fgdModel, cv::GC_INIT_WITH_MASK);
   */
 
-  // TODO: wrap with findContours()
-
   // flip the preview
   //cv::flip(tmpMat2, mat, 1);
 
-  // perspective transform
-  cv::Point2f srcQuad[4], dstQuad[4];
-  // before transform
-  int tiltY = 0;
-  int tiltX = 0;
-  if (orientation == UIInterfaceOrientationPortrait) {
-    tiltY = 10;
-  } else if (orientation == UIInterfaceOrientationPortraitUpsideDown) {
-    tiltY = -10;
-  } else if (orientation == UIInterfaceOrientationLandscapeLeft) {
-    tiltX = -6;
-  } else if (orientation == UIInterfaceOrientationLandscapeRight) {
-    tiltX = 6;
-  }
-  srcQuad[0] = cv::Point2f(-tiltY, -tiltX); // upper left
-  srcQuad[1] = cv::Point2f(tmpMat3.cols + tiltY, tiltX); // upper right
-  srcQuad[2] = cv::Point2f(tmpMat3.cols - tiltY, tmpMat3.rows - tiltX); // lower right
-  srcQuad[3] = cv::Point2f(tiltY, tmpMat3.rows + tiltX); // lower left
-  // after trasnform
-  tiltX = abs(tiltX);
-  dstQuad[0] = cv::Point2f(2 * tiltX, 2 * tiltY); // upper left
-  dstQuad[1] = cv::Point2f(tmpMat3.cols - 2 * tiltX, 2 * tiltY); // upper right
-  dstQuad[2] = cv::Point2f(tmpMat3.cols - 2 * tiltX, tmpMat3.rows - 2 * tiltY); // lower right
-  dstQuad[3] = cv::Point2f(2 * tiltX, tmpMat3.rows - 2 * tiltY); // lower left
-  // transform
-  cv::Mat warp_matrix = cv::getPerspectiveTransform(srcQuad, dstQuad);
-  cv::warpPerspective(tmpMat3, tmpMat4, warp_matrix, tmpMat3.size());
+  [self tilt:tmpMat3 toMat:tmpMat4 orientation:orientation];
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
   return MatToUIImage(tmpMat4);
