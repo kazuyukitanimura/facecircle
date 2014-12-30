@@ -256,7 +256,7 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
 void unsharpMask(cv::Mat& im)
 {
   cv::Mat tmp;
-  cv::GaussianBlur(im, tmp, cv::Size(5,5), 5);
+  cv::GaussianBlur(im, tmp, cv::Size(5, 5), 5);
   cv::addWeighted(im, 1.5, tmp, -0.5, 0, im);
 }
 
@@ -289,7 +289,7 @@ void unsharpMask(cv::Mat& im)
     // Kalman filter predict, to update the internal statePre variable
     KF.predict();
     // Kalman measure
-    cv::Mat_<float> measurement(5,1);
+    cv::Mat_<float> measurement(5, 1);
     measurement(0) = r.x;
     measurement(1) = newY;
     measurement(2) = MIN(r.width, mat.cols - r.x);
@@ -317,9 +317,9 @@ void unsharpMask(cv::Mat& im)
       if ([device lockForConfiguration:&error]) {
         cv::Point maxLoc;
         cv::Mat blurMat;
-        cv::GaussianBlur(tmpMat, blurMat, cv::Size(15,15), 0);
+        cv::GaussianBlur(tmpMat, blurMat, cv::Size(15, 15), 0);
         cv::minMaxLoc(blurMat, NULL, NULL, NULL, &maxLoc);
-        device.exposurePointOfInterest = CGPointMake((maxLoc.x + roi.x)/ mat.cols, (maxLoc.y + roi.y - estimated.at<float>(4)) / mat.rows);
+        device.exposurePointOfInterest = CGPointMake((maxLoc.x + roi.x) / mat.cols, (maxLoc.y + roi.y - estimated.at<float>(4)) / mat.rows);
         device.exposureMode = AVCaptureExposureModeContinuousAutoExposure;
         //device.exposureMode = AVCaptureExposureModeLocked;
         //device.exposureMode = AVCaptureExposureModeAutoExpose;
@@ -381,7 +381,7 @@ void unsharpMask(cv::Mat& im)
   */
 
   double minVal, maxVal;
-  cv::minMaxLoc(tmpMat(cv::Rect(roi.width*0.3, roi.height*0.3, roi.width*0.4, roi.height*0.4)), &minVal, &maxVal);
+  cv::minMaxLoc(tmpMat(cv::Rect(roi.width * 0.3, roi.height * 0.3, roi.width * 0.4, roi.height * 0.4)), &minVal, &maxVal);
   double threshold = maxVal - minVal;
   cv::Canny(tmpMat, tmpMat2, threshold * 0.6, threshold, 3, true);
   cv::bitwise_not(tmpMat2, tmpMat3);
@@ -390,24 +390,24 @@ void unsharpMask(cv::Mat& im)
 
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
   cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), CV_FILLED);
-  cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128,128,128));
+  cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128, 128, 128));
 
-  cv::compare(tmpMat3, cv::Scalar(128,128,128), tmpMat4, cv::CMP_EQ);
+  cv::compare(tmpMat3, cv::Scalar(128, 128, 128), tmpMat4, cv::CMP_EQ);
 
   int morph_size = 3;
-  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size+1), cv::Point( morph_size, morph_size));
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
   cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
 
   std::vector<std::vector<cv::Point> > contours;
   cv::findContours(tmpMat4, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-  drawContours(tmpMat2, contours, -1, cv::Scalar(128,128,128), CV_FILLED);
+  drawContours(tmpMat2, contours, -1, cv::Scalar(128, 128, 128), CV_FILLED);
 
-  cv::compare(tmpMat2, cv::Scalar(128,128,128), tmpMat4, cv::CMP_EQ);
+  cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat4, cv::CMP_EQ);
   cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
   cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_OPEN, element);
-  tmpMat3.setTo(cv::Scalar(255,255,255));
+  tmpMat3.setTo(cv::Scalar(255, 255, 255));
   tmpMat.copyTo(tmpMat3, tmpMat4);
 
   /*
