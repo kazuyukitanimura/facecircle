@@ -148,6 +148,7 @@
 - (void)connectDots:(cv::Mat &)mat
 {
   cv::Mat tmpMat(mat.size(), mat.type());
+  // connect if 0-255-0 sequence is found
   for (uint32_t y = 1; y < mat.rows-1; y++) {
     for (uint32_t x = 1; x < mat.cols-1; x++) {
       // 0 1 2
@@ -182,7 +183,8 @@
       ;
     }
   }
-  for (uint32_t y = 1; y < tmpMat.rows-2; y++) {
+  // connect if vertical 0-255-255-0 sequence is found
+  for (uint32_t y = 1; y < tmpMat.rows-2; y+=2) {
     for (uint32_t x = 0; x < tmpMat.cols; x++) {
       uchar dot0 = tmpMat.at<uchar>(y-1, x);
       uchar dot1 = tmpMat.at<uchar>(y, x);
@@ -190,6 +192,15 @@
       uchar dot3 = tmpMat.at<uchar>(y+2, x);
       mat.at<uchar>(y, x) = dot1 & (dot0 | dot3);
       mat.at<uchar>(y+1, x) = dot2 & (dot0 | dot3);
+    }
+  }
+  // connect if horizonatal 0-255-255-0 sequence is found
+  for (uint32_t x = 1; x < tmpMat.cols-2; x+=2) {
+    for (uint32_t y = 0; y < tmpMat.rows; y++) {
+      uchar dot0 = tmpMat.at<uchar>(y, x-1);
+      uchar dot3 = tmpMat.at<uchar>(y, x+2);
+      mat.at<uchar>(y, x) &= (dot0 | dot3);
+      mat.at<uchar>(y, x+1) &= (dot0 | dot3);
     }
   }
 }
@@ -395,6 +406,7 @@ void unsharpMask(cv::Mat& im)
 
   cv::compare(tmpMat2, cv::Scalar(128,128,128), tmpMat4, cv::CMP_EQ);
   cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
+  cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_OPEN, element);
   tmpMat3.setTo(cv::Scalar(255,255,255));
   tmpMat.copyTo(tmpMat3, tmpMat4);
 
