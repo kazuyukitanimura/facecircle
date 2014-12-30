@@ -390,8 +390,40 @@ void unsharpMask(cv::Mat& im)
 
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
   cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), CV_FILLED);
-  cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128, 128, 128));
 
+
+  uchar skinEstimate = tmpMat.at<uchar>(roi.height * 0.3, roi.width * 0.5);
+  uchar margin = 5;
+  uchar lowerBound = MAX(skinEstimate - margin, 0);
+  uchar higherBound = MIN(skinEstimate + margin, 255);
+  uint32_t hairBegin = 0;
+  for (uint32_t y = roi.height * 0.3; y--;) {
+    uchar flag = 0;
+    for (uint32_t x = roi.width * 0.3; x < roi.width * 0.7; x++) {
+      uchar dot = tmpMat.at<uchar>(y, x);
+      if (flag == 0 && dot > lowerBound && dot < higherBound) {
+        flag = 1;
+      } else if (flag == 1 && (dot <= lowerBound || dot >= higherBound)) {
+        flag = 2;
+      } else if (flag == 2 && dot > lowerBound && dot < higherBound) {
+        flag = 3;
+      } else if (flag == 3 && (dot <= lowerBound || dot >= higherBound)) {
+        flag = 4;
+      } else if (flag == 4 && dot > lowerBound && dot < higherBound) {
+        flag = 5;
+      }
+    }
+    if (flag == 5) {
+      hairBegin = y;
+      break;
+    }
+  }
+  if (hairBegin > 0) {
+    cv::line(tmpMat3, cv::Point(roi.width * 0.5, roi.height * 0.5), cv::Point(roi.width * 0.5, hairBegin), cv::Scalar(255, 255, 255), 1);
+  }
+
+
+  cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128, 128, 128));
   cv::compare(tmpMat3, cv::Scalar(128, 128, 128), tmpMat4, cv::CMP_EQ);
 
   int morph_size = 3;
@@ -409,6 +441,11 @@ void unsharpMask(cv::Mat& im)
   cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_OPEN, element);
   tmpMat3.setTo(cv::Scalar(255, 255, 255));
   tmpMat.copyTo(tmpMat3, tmpMat4);
+
+  if (hairBegin > 0) {
+    cv::line(tmpMat3, cv::Point(roi.width * 0.5, roi.height * 0.5), cv::Point(roi.width * 0.5, hairBegin), cv::Scalar(128, 128, 128), 1);
+  }
+
 
   /*
   cv::MSER mser;
