@@ -10,7 +10,6 @@
 #ifdef __cplusplus
 #import <opencv2/opencv.hpp>
 #import <opencv2/highgui/ios.h>
-//#import "EGBS.h"
 #endif
 
 @interface Face: NSObject

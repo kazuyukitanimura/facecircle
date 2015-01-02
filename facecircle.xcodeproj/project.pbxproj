@@ -16,8 +16,6 @@
 		804C02BC1A27FEA400589100 /* facecircleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 804C02BB1A27FEA400589100 /* facecircleTests.swift */; };
 		80A5E94D1A299989001A6232 /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80A5E94C1A299989001A6232 /* opencv2.framework */; };
 		80A5E9501A2AB6C5001A6232 /* Face.mm in Sources */ = {isa = PBXBuildFile; fileRef = 80A5E94F1A2AB6C5001A6232 /* Face.mm */; };
-		80C4470B1A5112F60014AB25 /* DisjointSetForest.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 80C447071A5112F60014AB25 /* DisjointSetForest.cpp */; };
-		80C4470C1A5112F60014AB25 /* EGBS.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 80C447091A5112F60014AB25 /* EGBS.cpp */; };
 		80C4470E1A5120E00014AB25 /* lbpcascade_frontalface.xml in Resources */ = {isa = PBXBuildFile; fileRef = 80C4470D1A5120E00014AB25 /* lbpcascade_frontalface.xml */; };
 /* End PBXBuildFile section */
 
@@ -46,10 +44,6 @@
 		80A5E94C1A299989001A6232 /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
 		80A5E94E1A2AB6C4001A6232 /* facecircle-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "facecircle-Bridging-Header.h"; sourceTree = "<group>"; };
 		80A5E94F1A2AB6C5001A6232 /* Face.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Face.mm; sourceTree = "<group>"; };
-		80C447071A5112F60014AB25 /* DisjointSetForest.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = DisjointSetForest.cpp; sourceTree = "<group>"; };
-		80C447081A5112F60014AB25 /* DisjointSetForest.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DisjointSetForest.h; sourceTree = "<group>"; };
-		80C447091A5112F60014AB25 /* EGBS.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = EGBS.cpp; sourceTree = "<group>"; };
-		80C4470A1A5112F60014AB25 /* EGBS.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = EGBS.h; sourceTree = "<group>"; };
 		80C4470D1A5120E00014AB25 /* lbpcascade_frontalface.xml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = lbpcascade_frontalface.xml; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -95,10 +89,6 @@
 		804C029F1A27FEA400589100 /* facecircle */ = {
 			isa = PBXGroup;
 			children = (
-				80C447071A5112F60014AB25 /* DisjointSetForest.cpp */,
-				80C447081A5112F60014AB25 /* DisjointSetForest.h */,
-				80C447091A5112F60014AB25 /* EGBS.cpp */,
-				80C4470A1A5112F60014AB25 /* EGBS.h */,
 				804C02A21A27FEA400589100 /* AppDelegate.swift */,
 				804C02A71A27FEA400589100 /* ViewController.swift */,
 				80A5E94F1A2AB6C5001A6232 /* Face.mm */,
@@ -239,11 +229,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				80C4470C1A5112F60014AB25 /* EGBS.cpp in Sources */,
 				80A5E9501A2AB6C5001A6232 /* Face.mm in Sources */,
 				804C02A81A27FEA400589100 /* ViewController.swift in Sources */,
 				804C02A61A27FEA400589100 /* facecircle.xcdatamodeld in Sources */,
-				80C4470B1A5112F60014AB25 /* DisjointSetForest.cpp in Sources */,
 				804C02A31A27FEA400589100 /* AppDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

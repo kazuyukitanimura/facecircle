@@ -369,17 +369,6 @@ void unsharpMask(cv::Mat& im)
   }
  */
 
-  /*
-  // https://github.com/subokita/Sandbox/tree/master/EfficientGraphBasedImageSegmentation
-  cv::cvtColor(tmpMat, tmpMat, CV_GRAY2BGR);
-  float sigma             = 0.5;      // For internal gaussian blurring usage only
-  float threshold         = 150;     // Bigger threshold means bigger clusters
-  int min_component_size  = 20;       // Weed out clusters that are smaller than this size
-  EGBS egbs;
-  egbs.applySegmentation(tmpMat, sigma, threshold, min_component_size);
-  tmpMat4 = egbs.recolor(false);
-  */
-
   double minVal, maxVal;
   cv::minMaxLoc(tmpMat(cv::Rect(roi.width * 0.3, roi.height * 0.3, roi.width * 0.4, roi.height * 0.4)), &minVal, &maxVal);
   double threshold = maxVal - minVal;
