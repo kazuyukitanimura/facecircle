@@ -13,6 +13,7 @@
 {
   cv::CascadeClassifier cascade;
   cv::KalmanFilter KF;
+  cv::Mat previousMask;
 }
 @end
 
@@ -65,6 +66,8 @@
   setIdentity(KF.processNoiseCov, cv::Scalar::all(0.005)); //adjust this for faster convergence - but higher noise
   setIdentity(KF.measurementNoiseCov, cv::Scalar::all(10));
   setIdentity(KF.errorCovPost, cv::Scalar::all(.1));
+
+  previousMask.create(1, 1, CV_8UC1);
 
   return self;
 }
@@ -401,6 +404,11 @@ void unsharpMask(cv::Mat& im)
   cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
   cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_OPEN, element);
   tmpMat3.setTo(cv::Scalar(255, 255, 255));
+
+  cv::resize(previousMask, previousMask, tmpMat4.size(), cv::INTER_LANCZOS4);
+  cv::addWeighted(tmpMat4, 0.25, previousMask, 0.75, 0, previousMask);
+  cv::threshold(previousMask, tmpMat4, 224, 255, CV_THRESH_BINARY);
+
   tmpMat.copyTo(tmpMat3, tmpMat4);
 
   /*
