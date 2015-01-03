@@ -376,11 +376,15 @@ void unsharpMask(cv::Mat& im)
   }
  */
 
+  int morph_size = 3;
+  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
+
   // Inpaiting specular highlights
   // http://dsp.stackexchange.com/questions/1215/how-to-remove-the-glare-and-brightness-in-an-image-image-preprocessing
   // http://answers.opencv.org/question/7223/hotspots-in-an-image/
-  
-  
+  //cv::threshold(tmpMat, tmpMat2, 240, 255, CV_THRESH_BINARY);
+  //cv::dilate(tmpMat2, tmpMat2, element);
+  //cv::inpaint(tmpMat, tmpMat2, tmpMat, 3, cv::INPAINT_TELEA);
 
   double minVal, maxVal;
   cv::minMaxLoc(tmpMat(cv::Rect(roi.width * 0.3, roi.height * 0.3, roi.width * 0.4, roi.height * 0.4)), &minVal, &maxVal);
@@ -396,8 +400,6 @@ void unsharpMask(cv::Mat& im)
 
   cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat3, cv::CMP_EQ);
 
-  int morph_size = 3;
-  cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
   cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_CLOSE, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
