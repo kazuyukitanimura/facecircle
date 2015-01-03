@@ -339,7 +339,7 @@ void unsharpMask(cv::Mat& im)
   // http://docs.opencv.org/trunk/doc/py_tutorials/py_imgproc/py_histograms/py_histogram_equalization/py_histogram_equalization.html
   cv::createCLAHE(4.0, cv::Size(4, 4))->apply(tmpMat, tmpMat);
 
-  cv::Mat tmpMat2, tmpMat3, tmpMat4;
+  cv::Mat tmpMat2, tmpMat3;
   //cv::medianBlur(tmpMat, tmpMat, 9);
   //cv::GaussianBlur(tmpMat, tmpMat, cv::Size(3,3), 0);
   //cv::bilateralFilter(tmpMat, tmpMat4, 15, 80, 80);
@@ -376,40 +376,46 @@ void unsharpMask(cv::Mat& im)
   }
  */
 
+  // Inpaiting specular highlights
+  // http://dsp.stackexchange.com/questions/1215/how-to-remove-the-glare-and-brightness-in-an-image-image-preprocessing
+  // http://answers.opencv.org/question/7223/hotspots-in-an-image/
+  
+  
+
   double minVal, maxVal;
   cv::minMaxLoc(tmpMat(cv::Rect(roi.width * 0.3, roi.height * 0.3, roi.width * 0.4, roi.height * 0.4)), &minVal, &maxVal);
   double threshold = maxVal - minVal;
   cv::Canny(tmpMat, tmpMat2, threshold * 0.6, threshold, 3, true);
-  cv::bitwise_not(tmpMat2, tmpMat3);
+  cv::bitwise_not(tmpMat2, tmpMat2);
 
-  [self connectDots:tmpMat3];
+  [self connectDots:tmpMat2];
 
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
-  cv::ellipse(tmpMat3, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), CV_FILLED);
-  cv::floodFill(tmpMat3, seedPoint, cv::Scalar(128, 128, 128));
+  cv::ellipse(tmpMat2, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), CV_FILLED);
+  cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128, 128, 128));
 
-  cv::compare(tmpMat3, cv::Scalar(128, 128, 128), tmpMat4, cv::CMP_EQ);
+  cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat3, cv::CMP_EQ);
 
   int morph_size = 3;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
-  cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
+  cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_CLOSE, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
 
   std::vector<std::vector<cv::Point> > contours;
-  cv::findContours(tmpMat4, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+  cv::findContours(tmpMat3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
   drawContours(tmpMat2, contours, -1, cv::Scalar(128, 128, 128), CV_FILLED);
 
-  cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat4, cv::CMP_EQ);
-  cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_CLOSE, element);
-  cv::morphologyEx(tmpMat4, tmpMat4, cv::MORPH_OPEN, element);
-  tmpMat3.setTo(cv::Scalar(255, 255, 255));
+  cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat3, cv::CMP_EQ);
+  cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_CLOSE, element);
+  cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_OPEN, element);
+  tmpMat2.setTo(cv::Scalar(255, 255, 255));
 
-  cv::resize(previousMask, previousMask, tmpMat4.size(), cv::INTER_LANCZOS4);
-  cv::addWeighted(tmpMat4, 0.25, previousMask, 0.75, 0, previousMask);
-  cv::threshold(previousMask, tmpMat4, 224, 255, CV_THRESH_BINARY);
+  cv::resize(previousMask, previousMask, tmpMat3.size(), cv::INTER_LANCZOS4);
+  cv::addWeighted(tmpMat3, 0.25, previousMask, 0.75, 0, previousMask);
+  cv::threshold(previousMask, tmpMat3, 224, 255, CV_THRESH_BINARY);
 
-  tmpMat.copyTo(tmpMat3, tmpMat4);
+  tmpMat.copyTo(tmpMat2, tmpMat3);
 
   /*
   cv::MSER mser;
@@ -440,10 +446,10 @@ void unsharpMask(cv::Mat& im)
   // flip the preview
   //cv::flip(tmpMat2, mat, 1);
 
-  [self tilt:tmpMat3 toMat:tmpMat4 orientation:orientation];
+  [self tilt:tmpMat2 toMat:tmpMat3 orientation:orientation];
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
-  return MatToUIImage(tmpMat4);
+  return MatToUIImage(tmpMat3);
 }
 
 @end
