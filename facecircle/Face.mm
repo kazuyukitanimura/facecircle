@@ -341,9 +341,9 @@ void unsharpMask(cv::Mat& im)
 
   cv::Mat tmpMat2, tmpMat3;
   //cv::medianBlur(tmpMat, tmpMat, 9);
-  //cv::GaussianBlur(tmpMat, tmpMat, cv::Size(3,3), 0);
-  //cv::bilateralFilter(tmpMat, tmpMat4, 15, 80, 80);
-  //cv::adaptiveBilateralFilter(tmpMat, tmpMat4, cv::Size(3,3), 15);
+  //cv::bilateralFilter(tmpMat, tmpMat2, 3, 8, 8);
+  //cv::adaptiveBilateralFilter(tmpMat, tmpMat2, cv::Size(3,3), 4, 4);
+  //tmpMat2.copyTo(tmpMat);
   //cv::equalizeHist(tmpMat, tmpMat);
   //cv::Laplacian(tmpMat, tmpMat2, CV_8UC1);
   //cv::cvtColor(tmpMat, tmpMat, CV_GRAY2BGR);
@@ -367,15 +367,6 @@ void unsharpMask(cv::Mat& im)
   //sauvolaFast(tmpMat, tmpMat4, 15, 0.05, 100);
   //cv::bitwise_and(tmpMat4, tmpMat3, tmpMat2);
 
-/*
-  tmpMat3.create(tmpMat2.size(), CV_8U);
-  for (uint32_t y = 1; y < tmpMat2.rows-1; y++) {
-    for (uint32_t x = 1; x < tmpMat2.cols-1; x++) {
-      tmpMat3.at<uchar>(y, x) = (tmpMat2.at<uchar>(y-1, x) & tmpMat2.at<uchar>(y, x-1) & tmpMat2.at<uchar>(y+1, x) & tmpMat2.at<uchar>(y, x+1)) | tmpMat2.at<uchar>(y, x);
-    }
-  }
- */
-
   int morph_size = 3;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
 
@@ -386,64 +377,45 @@ void unsharpMask(cv::Mat& im)
   //cv::dilate(tmpMat2, tmpMat2, element);
   //cv::inpaint(tmpMat, tmpMat2, tmpMat, 3, cv::INPAINT_TELEA);
 
+  // noise reduction
+  cv::GaussianBlur(tmpMat, tmpMat2, cv::Size(3,3), 0);
+
+  // edge detection
   double minVal, maxVal;
-  cv::minMaxLoc(tmpMat(cv::Rect(roi.width * 0.3, roi.height * 0.3, roi.width * 0.4, roi.height * 0.4)), &minVal, &maxVal);
+  cv::minMaxLoc(tmpMat2(cv::Rect(roi.width * 0.3, roi.height * 0.3, roi.width * 0.4, roi.height * 0.4)), &minVal, &maxVal);
   double threshold = maxVal - minVal;
-  cv::Canny(tmpMat, tmpMat2, threshold * 0.6, threshold, 3, true);
-  cv::bitwise_not(tmpMat2, tmpMat2);
+  cv::Canny(tmpMat2, tmpMat3, threshold * 0.7, threshold, 3, true);
+  cv::bitwise_not(tmpMat3, tmpMat2);
 
+  // connect broken edges
   [self connectDots:tmpMat2];
+  cv::morphologyEx(tmpMat2, tmpMat2, cv::MORPH_OPEN, cv::Mat());
 
+  // create the mask
   cv::Point seedPoint = cv::Point(roi.width * 0.5, roi.height * 0.5);
   cv::ellipse(tmpMat2, seedPoint, cv::Size(roi.width * 0.22, roi.height * 0.22), 0, 0, 360, cv::Scalar(255, 255, 255), CV_FILLED);
   cv::floodFill(tmpMat2, seedPoint, cv::Scalar(128, 128, 128));
-
   cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat3, cv::CMP_EQ);
-
   cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_CLOSE, element);
   //cv::erode(tmpMat2, tmpMat2, element);
   //cv::dilate(tmpMat2, tmpMat2, element);
-
   std::vector<std::vector<cv::Point> > contours;
   cv::findContours(tmpMat3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
   drawContours(tmpMat2, contours, -1, cv::Scalar(128, 128, 128), CV_FILLED);
-
   cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat3, cv::CMP_EQ);
   cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_CLOSE, element);
-  cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_OPEN, element);
+  //cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_OPEN, element);
   tmpMat2.setTo(cv::Scalar(255, 255, 255));
 
+  // stabilize the mask
   cv::resize(previousMask, previousMask, tmpMat3.size(), cv::INTER_LANCZOS4);
   cv::addWeighted(tmpMat3, 0.25, previousMask, 0.75, 0, previousMask);
   cv::threshold(previousMask, tmpMat3, 224, 255, CV_THRESH_BINARY);
 
+  cv::dilate(tmpMat3, tmpMat3, cv::Mat()); // make the mask slightly larger
+
+  // apply the mask
   tmpMat.copyTo(tmpMat2, tmpMat3);
-
-  /*
-  cv::MSER mser;
-  cv::vector<cv::KeyPoint> mser_features;
-  mser.detect(tmpMat, mser_features);
-  for(int i=0;i<mser_features.size();i++){
-    cv::circle(tmpMat , mser_features[i].pt, 1, cv::Scalar(0,0,255), 3);
-  }
-  */
-
-  // TODO: LineSegmentDetector for opencv 3.0
-  //std::vector<cv::Vec4i> lines;
-  //cv::HoughLinesP(tmpMat2, lines, 1, CV_PI/180, 100, 5, 1);
-  //for (size_t i = 0; i < lines.size(); i++) {
-  //  cv::Vec4i line = lines[i];
-  //  cv::line(tmpMat, cv::Point(line[0], line[1]), cv::Point(line[2], line[3]), cv::Scalar(128,128,128));
-  //}
-
-  /*
-  cv::cvtColor(tmpMat, tmpMat, CV_8UC3);
-  cv::Mat fgdModel;
-  fgdModel.setTo(0);
-  cv::Mat bgdModel;
-  bgdModel.setTo(0);
-  cv::grabCut(tmpMat, tmpMat, cv::Rect(previousROI), bgdModel, fgdModel, cv::GC_INIT_WITH_MASK);
-  */
 
   // flip the preview
   //cv::flip(tmpMat2, mat, 1);
