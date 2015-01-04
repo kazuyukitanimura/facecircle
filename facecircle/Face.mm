@@ -14,12 +14,6 @@
   cv::CascadeClassifier cascade;
   cv::KalmanFilter KF;
   cv::Mat previousMask;
-  cv::Ptr<cv::FeatureDetector> detector;
-  cv::Ptr<cv::DescriptorExtractor> extractor;
-  cv::Ptr<cv::DescriptorMatcher > matcher;
-  cv::Mat previousDescriptors;
-  std::vector<cv::KeyPoint> previousKeypoints;
-  int shiftx, shifty;
 }
 @end
 
@@ -74,11 +68,6 @@
   setIdentity(KF.errorCovPost, cv::Scalar::all(.1));
 
   previousMask.create(1, 1, CV_8UC1);
-  detector = new cv::OrbFeatureDetector();
-  extractor = new cv::OrbDescriptorExtractor();
-  matcher = new cv::BFMatcher(cv::NORM_HAMMING, false);
-  shiftx = 0;
-  shifty = 0;
 
   return self;
 }
@@ -292,8 +281,6 @@ void unsharpMask(cv::Mat& im)
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
 
   if (faces.size() == 0) {
-    shiftx = 0;
-    shifty = 0;
     return nil;
   }
   cv::Rect r = faces[0];
@@ -330,38 +317,6 @@ void unsharpMask(cv::Mat& im)
   roi.width = MAX(MIN(estimated.at<float>(2), mat.cols - roi.x), 1);
   roi.height = MAX(MIN(estimated.at<float>(3), mat.rows - roi.y), 1);
   tmpMat = mat(roi);
-
-  if (tmpMat.size().area() > 10) {
-    std::vector<cv::KeyPoint> keypoints;
-    cv::Mat descriptors;
-    std::vector<cv::DMatch> matches;
-    detector->detect(tmpMat, keypoints);
-    extractor->compute(tmpMat, keypoints, descriptors);
-    if (!descriptors.empty() && !keypoints.empty() && !previousDescriptors.empty() && !previousKeypoints.empty()) {
-      matcher->match(previousDescriptors, descriptors, matches);
-      if (matches.size() >= 4) {
-        std::vector<cv::Point2f> srcPoints, dstPoints;
-        for (uint32_t i = 0; i < matches.size(); i++) {
-          srcPoints.push_back(previousKeypoints[matches[i].queryIdx].pt);
-          dstPoints.push_back(keypoints[matches[i].trainIdx].pt);
-        }
-        cv::Mat H = cv::findHomography(srcPoints, dstPoints, CV_RANSAC);
-        //std::cout << "H = "<< std::endl << " "  << H << std::endl << std::endl;
-        int dx = H.at<double>(0, 2);
-        int dy = H.at<double>(1, 2);
-        if (abs(dx) < 5 && abs(dy) < 5) {
-          shiftx -= dx;
-          shifty -= dy;
-        } else {
-          shiftx *= 0.5;
-          shifty *= 0.5;
-        }
-        //[self shiftImage:tmpMat x:shiftx y:shifty];
-      }
-    }
-    descriptors.copyTo(previousDescriptors);
-    previousKeypoints = keypoints;
-  }
 
   // Exposure settings
   // TODO change this to observer for device.adjustingExposure
