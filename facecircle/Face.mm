@@ -19,6 +19,7 @@
   cv::Ptr<cv::DescriptorMatcher > matcher;
   cv::Mat previousDescriptors;
   std::vector<cv::KeyPoint> previousKeypoints;
+  int shiftx, shifty;
 }
 @end
 
@@ -75,7 +76,9 @@
   previousMask.create(1, 1, CV_8UC1);
   detector = new cv::OrbFeatureDetector();
   extractor = new cv::OrbDescriptorExtractor();
-  matcher = new cv::BFMatcher(cv::NORM_HAMMING2, true);
+  matcher = new cv::BFMatcher(cv::NORM_HAMMING, false);
+  shiftx = 0;
+  shifty = 0;
 
   return self;
 }
@@ -289,6 +292,8 @@ void unsharpMask(cv::Mat& im)
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
 
   if (faces.size() == 0) {
+    shiftx = 0;
+    shifty = 0;
     return nil;
   }
   cv::Rect r = faces[0];
@@ -341,17 +346,17 @@ void unsharpMask(cv::Mat& im)
           dstPoints.push_back(keypoints[matches[i].trainIdx].pt);
         }
         cv::Mat H = cv::findHomography(srcPoints, dstPoints, CV_RANSAC);
-        //[self shiftImage:tmpMat x:-H.at<double>(0, 2) * 0.5 y:-H.at<double>(1, 2) * 0.5];
-        //cv::warpPerspective(tmpMat, tmpMat, H, tmpMat.size());
-        /*
-         std::vector<cv::Point2f> srcCorners(4);
-         srcCorners[0] = cvPoint(0, 0);
-         srcCorners[1] = cvPoint(tmpMat.cols, 0);
-         srcCorners[2] = cvPoint(tmpMat.cols, tmpMat.rows);
-         srcCorners[3] = cvPoint(0, tmpMat.rows);
-         std::vector<cv::Point2f> dstCorners(4);
-         cv::perspectiveTransform(srcCorners, dstCorners, H);
-         */
+        //std::cout << "H = "<< std::endl << " "  << H << std::endl << std::endl;
+        int dx = H.at<double>(0, 2);
+        int dy = H.at<double>(1, 2);
+        if (abs(dx) < 5 && abs(dy) < 5) {
+          shiftx -= dx;
+          shifty -= dy;
+        } else {
+          shiftx *= 0.5;
+          shifty *= 0.5;
+        }
+        //[self shiftImage:tmpMat x:shiftx y:shifty];
       }
     }
     descriptors.copyTo(previousDescriptors);
