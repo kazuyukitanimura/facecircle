@@ -115,7 +115,7 @@
 - (void)shiftImage:(cv::Mat &)mat x:(int)offsetx y:(int)offsety
 {
   cv::Mat trans_mat = (cv::Mat_<double>(2,3) << 1, 0, offsetx, 0, 1, offsety);
-  cv::warpAffine(mat,mat,trans_mat,mat.size());
+  cv::warpAffine(mat, mat, trans_mat, mat.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
 }
 - (void)tilt:(cv::Mat &)src toMat:(cv::Mat &)dst orientation:(UIInterfaceOrientation)orientation
 {
@@ -145,7 +145,7 @@
   dstQuad[3] = cv::Point2f(2 * tiltX, src.rows - 2 * tiltY); // lower left
   // transform
   cv::Mat warp_matrix = cv::getPerspectiveTransform(srcQuad, dstQuad);
-  cv::warpPerspective(src, dst, warp_matrix, src.size());
+  cv::warpPerspective(src, dst, warp_matrix, src.size(), cv::INTER_LINEAR, cv::BORDER_CONSTANT, cv::Scalar(255, 255, 255));
 }
 
 - (void)connectDots:(cv::Mat &)mat
