@@ -63,8 +63,8 @@
   KF.statePre.at<float>(8) = 0;
   KF.statePre.at<float>(9) = 0;
   setIdentity(KF.measurementMatrix);
-  setIdentity(KF.processNoiseCov, cv::Scalar::all(0.005)); //adjust this for faster convergence - but higher noise
-  setIdentity(KF.measurementNoiseCov, cv::Scalar::all(10));
+  setIdentity(KF.processNoiseCov, cv::Scalar::all(0.001)); //adjust this for faster convergence - but higher noise
+  setIdentity(KF.measurementNoiseCov, cv::Scalar::all(100));
   setIdentity(KF.errorCovPost, cv::Scalar::all(.1));
 
   previousMask.create(1, 1, CV_8UC1);
