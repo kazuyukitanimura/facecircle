@@ -14,6 +14,11 @@
   cv::CascadeClassifier cascade;
   cv::KalmanFilter KF;
   cv::Mat previousMask;
+  cv::Ptr<cv::FeatureDetector> detector;
+  cv::Ptr<cv::DescriptorExtractor> extractor;
+  cv::Ptr<cv::DescriptorMatcher > matcher;
+  cv::Mat previousDescriptors;
+  std::vector<cv::KeyPoint> previousKeypoints;
 }
 @end
 
@@ -68,6 +73,9 @@
   setIdentity(KF.errorCovPost, cv::Scalar::all(.1));
 
   previousMask.create(1, 1, CV_8UC1);
+  detector = new cv::OrbFeatureDetector();
+  extractor = new cv::OrbDescriptorExtractor();
+  matcher = new cv::BFMatcher(cv::NORM_HAMMING2, true);
 
   return self;
 }
@@ -224,8 +232,8 @@ void sauvolaFast(const cv::Mat &src, cv::Mat &dst, int kernelSize, double k, dou
 
   cv::Mat sum, sqSum;
   cv::integral(srcWithBorder, sum, sqSum);
-  for(int y = 0; y < src.rows; y++) {
-    for(int x = 0; x < src.cols; x++) {
+  for (int y = 0; y < src.rows; y++) {
+    for (int x = 0; x < src.cols; x++) {
       int kx = x + kernelSize;
       int ky = y + kernelSize;
       double sumVal = sum.at<int>(ky, kx) - sum.at<int>(ky, x) - sum.at<int>(y, kx) + sum.at<int>(y, x);
@@ -280,58 +288,91 @@ void unsharpMask(cv::Mat& im)
   cv::Mat tmpMat = mat;
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
 
-  if (faces.size() > 0) {
-    cv::Rect r = faces[0];
+  if (faces.size() == 0) {
+    return nil;
+  }
+  cv::Rect r = faces[0];
 
-    // calculate params
-    int offsetY = (mat.rows - r.height) * 0.5 - r.y;
-    int newHeight = r.width * 2;
-    int newY = 0;
-    if (mat.rows < newHeight) {
-      newHeight = mat.rows;
-    } else {
-      newY = (mat.rows - newHeight) * 0.5;
-    }
+  // calculate params
+  int offsetY = (mat.rows - r.height) * 0.5 - r.y;
+  int newHeight = r.width * 2;
+  int newY = 0;
+  if (mat.rows < newHeight) {
+    newHeight = mat.rows;
+  } else {
+    newY = (mat.rows - newHeight) * 0.5;
+  }
 
-    // Kalman filter predict, to update the internal statePre variable
-    KF.predict();
-    // Kalman measure
-    cv::Mat_<float> measurement(5, 1);
-    measurement(0) = r.x;
-    measurement(1) = newY;
-    measurement(2) = MIN(r.width, mat.cols - r.x);
-    measurement(3) = MIN(newHeight, mat.rows - newY);
-    measurement(4) = offsetY;
-    // Kalman estimate
-    cv::Mat estimated = KF.correct(measurement);
+  // Kalman filter predict, to update the internal statePre variable
+  KF.predict();
+  // Kalman measure
+  cv::Mat_<float> measurement(5, 1);
+  measurement(0) = r.x;
+  measurement(1) = newY;
+  measurement(2) = MIN(r.width, mat.cols - r.x);
+  measurement(3) = MIN(newHeight, mat.rows - newY);
+  measurement(4) = offsetY;
+  // Kalman estimate
+  cv::Mat estimated = KF.correct(measurement);
 
-    // vertical shift
-    [self shiftImage:mat x:0 y:estimated.at<float>(4)];
+  // vertical shift
+  [self shiftImage:mat x:0 y:estimated.at<float>(4)];
 
-    // crop
-    // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
-    roi.x = MAX(estimated.at<float>(0), 0);
-    roi.y = MAX(estimated.at<float>(1), 0);
-    roi.width = MAX(MIN(estimated.at<float>(2), mat.cols - roi.x), 1);
-    roi.height = MAX(MIN(estimated.at<float>(3), mat.rows - roi.y), 1);
-    tmpMat = mat(roi);
+  // crop
+  // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
+  roi.x = MAX(estimated.at<float>(0), 0);
+  roi.y = MAX(estimated.at<float>(1), 0);
+  roi.width = MAX(MIN(estimated.at<float>(2), mat.cols - roi.x), 1);
+  roi.height = MAX(MIN(estimated.at<float>(3), mat.rows - roi.y), 1);
+  tmpMat = mat(roi);
 
-    // Exposure settings
-    // TODO change this to observer for device.adjustingExposure
-    // http://cocoadays.blogspot.com/2011
-    if (device.exposurePointOfInterestSupported && !device.adjustingExposure) {
-      NSError *error;
-      if ([device lockForConfiguration:&error]) {
-        cv::Point maxLoc;
-        cv::Mat blurMat;
-        cv::GaussianBlur(tmpMat, blurMat, cv::Size(15, 15), 0);
-        cv::minMaxLoc(blurMat, NULL, NULL, NULL, &maxLoc);
-        device.exposurePointOfInterest = CGPointMake((maxLoc.x + roi.x) / mat.cols, (maxLoc.y + roi.y - estimated.at<float>(4)) / mat.rows);
-        device.exposureMode = AVCaptureExposureModeContinuousAutoExposure;
-        //device.exposureMode = AVCaptureExposureModeLocked;
-        //device.exposureMode = AVCaptureExposureModeAutoExpose;
-        [device unlockForConfiguration];
+  if (tmpMat.size().area() > 10) {
+    std::vector<cv::KeyPoint> keypoints;
+    cv::Mat descriptors;
+    std::vector<cv::DMatch> matches;
+    detector->detect(tmpMat, keypoints);
+    extractor->compute(tmpMat, keypoints, descriptors);
+    if (!descriptors.empty() && !keypoints.empty() && !previousDescriptors.empty() && !previousKeypoints.empty()) {
+      matcher->match(previousDescriptors, descriptors, matches);
+      if (matches.size() >= 4) {
+        std::vector<cv::Point2f> srcPoints, dstPoints;
+        for (uint32_t i = 0; i < matches.size(); i++) {
+          srcPoints.push_back(previousKeypoints[matches[i].queryIdx].pt);
+          dstPoints.push_back(keypoints[matches[i].trainIdx].pt);
+        }
+        cv::Mat H = cv::findHomography(srcPoints, dstPoints, CV_RANSAC);
+        //[self shiftImage:tmpMat x:-H.at<double>(0, 2) * 0.5 y:-H.at<double>(1, 2) * 0.5];
+        //cv::warpPerspective(tmpMat, tmpMat, H, tmpMat.size());
+        /*
+         std::vector<cv::Point2f> srcCorners(4);
+         srcCorners[0] = cvPoint(0, 0);
+         srcCorners[1] = cvPoint(tmpMat.cols, 0);
+         srcCorners[2] = cvPoint(tmpMat.cols, tmpMat.rows);
+         srcCorners[3] = cvPoint(0, tmpMat.rows);
+         std::vector<cv::Point2f> dstCorners(4);
+         cv::perspectiveTransform(srcCorners, dstCorners, H);
+         */
       }
+    }
+    descriptors.copyTo(previousDescriptors);
+    previousKeypoints = keypoints;
+  }
+
+  // Exposure settings
+  // TODO change this to observer for device.adjustingExposure
+  // http://cocoadays.blogspot.com/2011
+  if (device.exposurePointOfInterestSupported && !device.adjustingExposure) {
+    NSError *error;
+    if ([device lockForConfiguration:&error]) {
+      cv::Point maxLoc;
+      cv::Mat blurMat;
+      cv::GaussianBlur(tmpMat, blurMat, cv::Size(15, 15), 0);
+      cv::minMaxLoc(blurMat, NULL, NULL, NULL, &maxLoc);
+      device.exposurePointOfInterest = CGPointMake((maxLoc.x + roi.x) / mat.cols, (maxLoc.y + roi.y - estimated.at<float>(4)) / mat.rows);
+      device.exposureMode = AVCaptureExposureModeContinuousAutoExposure;
+      //device.exposureMode = AVCaptureExposureModeLocked;
+      //device.exposureMode = AVCaptureExposureModeAutoExpose;
+      [device unlockForConfiguration];
     }
   }
 
@@ -370,13 +411,6 @@ void unsharpMask(cv::Mat& im)
   int morph_size = 3;
   cv::Mat element = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(2 * morph_size + 1, 2 * morph_size + 1), cv::Point(morph_size, morph_size));
 
-  // Inpaiting specular highlights
-  // http://dsp.stackexchange.com/questions/1215/how-to-remove-the-glare-and-brightness-in-an-image-image-preprocessing
-  // http://answers.opencv.org/question/7223/hotspots-in-an-image/
-  //cv::threshold(tmpMat, tmpMat2, 240, 255, CV_THRESH_BINARY);
-  //cv::dilate(tmpMat2, tmpMat2, element);
-  //cv::inpaint(tmpMat, tmpMat2, tmpMat, 3, cv::INPAINT_TELEA);
-
   // noise reduction
   cv::GaussianBlur(tmpMat, tmpMat2, cv::Size(3,3), 0);
 
@@ -404,7 +438,6 @@ void unsharpMask(cv::Mat& im)
   drawContours(tmpMat2, contours, -1, cv::Scalar(128, 128, 128), CV_FILLED);
   cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat3, cv::CMP_EQ);
   cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_CLOSE, element);
-  //cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_OPEN, element);
   tmpMat2.setTo(cv::Scalar(255, 255, 255));
 
   // stabilize the mask
