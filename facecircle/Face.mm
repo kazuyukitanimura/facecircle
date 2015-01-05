@@ -14,6 +14,8 @@
   cv::CascadeClassifier cascade;
   cv::KalmanFilter KF;
   cv::Mat previousMask;
+  uchar interleave;
+  cv::Rect face;
 }
 @end
 
@@ -63,11 +65,12 @@
   KF.statePre.at<float>(8) = 0;
   KF.statePre.at<float>(9) = 0;
   setIdentity(KF.measurementMatrix);
-  setIdentity(KF.processNoiseCov, cv::Scalar::all(0.001)); //adjust this for faster convergence - but higher noise
+  setIdentity(KF.processNoiseCov, cv::Scalar::all(0.005)); //adjust this for faster convergence - but higher noise
   setIdentity(KF.measurementNoiseCov, cv::Scalar::all(100));
   setIdentity(KF.errorCovPost, cv::Scalar::all(.1));
 
   previousMask.create(1, 1, CV_8UC1);
+  interleave = 0;
 
   return self;
 }
@@ -273,21 +276,24 @@ void unsharpMask(cv::Mat& im)
   cv::Mat mat;
   [self convertYUVSampleBuffer:sampleBuffer toGrayscaleMat:mat];
 
-  // detect faces
-  std::vector<cv::Rect> faces;
-  cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
-
   cv::Mat tmpMat = mat;
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
 
-  if (faces.size() == 0) {
-    return nil;
+  if (!(interleave++ & 0x03)) {
+    // detect faces
+    std::vector<cv::Rect> faces;
+    cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
+
+    if (faces.size()) {
+      face = faces[0];
+    } else {
+      interleave = 0;
+    }
   }
-  cv::Rect r = faces[0];
 
   // calculate params
-  int offsetY = (mat.rows - r.height) * 0.5 - r.y;
-  int newHeight = r.width * 2;
+  int offsetY = (mat.rows - face.height) * 0.5 - face.y;
+  int newHeight = face.width * 2;
   int newY = 0;
   if (mat.rows < newHeight) {
     newHeight = mat.rows;
@@ -299,9 +305,9 @@ void unsharpMask(cv::Mat& im)
   KF.predict();
   // Kalman measure
   cv::Mat_<float> measurement(5, 1);
-  measurement(0) = r.x;
+  measurement(0) = face.x;
   measurement(1) = newY;
-  measurement(2) = MIN(r.width, mat.cols - r.x);
+  measurement(2) = MIN(face.width, mat.cols - face.x);
   measurement(3) = MIN(newHeight, mat.rows - newY);
   measurement(4) = offsetY;
   // Kalman estimate
