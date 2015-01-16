@@ -16,7 +16,7 @@
 
 - (id)init;
 #ifdef __cplusplus
-- (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toGrayscaleMat:(cv::Mat &)mat;
+- (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toYMat:(cv::Mat &)mat toUMat:(cv::Mat &)uMat toVMat:(cv::Mat &)vMat;
 - (void)shiftImage:(cv::Mat &)img x:(int)offsetx y:(int)offsety;
 - (void)tilt:(cv::Mat &)src toMat:(cv::Mat &)dst orientation:(UIInterfaceOrientation)orientation;
 - (void)connectDots:(cv::Mat &)mat;

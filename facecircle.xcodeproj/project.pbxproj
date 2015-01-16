@@ -14,9 +14,9 @@
 		804C02AD1A27FEA400589100 /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 804C02AC1A27FEA400589100 /* Images.xcassets */; };
 		804C02B01A27FEA400589100 /* LaunchScreen.xib in Resources */ = {isa = PBXBuildFile; fileRef = 804C02AE1A27FEA400589100 /* LaunchScreen.xib */; };
 		804C02BC1A27FEA400589100 /* facecircleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 804C02BB1A27FEA400589100 /* facecircleTests.swift */; };
-		80A5E94D1A299989001A6232 /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80A5E94C1A299989001A6232 /* opencv2.framework */; };
 		80A5E9501A2AB6C5001A6232 /* Face.mm in Sources */ = {isa = PBXBuildFile; fileRef = 80A5E94F1A2AB6C5001A6232 /* Face.mm */; };
 		80C4470E1A5120E00014AB25 /* lbpcascade_frontalface.xml in Resources */ = {isa = PBXBuildFile; fileRef = 80C4470D1A5120E00014AB25 /* lbpcascade_frontalface.xml */; };
+		80C447101A68EF7A0014AB25 /* opencv2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 80C4470F1A68EF7A0014AB25 /* opencv2.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -41,10 +41,10 @@
 		804C02B51A27FEA400589100 /* facecircleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = facecircleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		804C02BA1A27FEA400589100 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		804C02BB1A27FEA400589100 /* facecircleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = facecircleTests.swift; sourceTree = "<group>"; };
-		80A5E94C1A299989001A6232 /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
 		80A5E94E1A2AB6C4001A6232 /* facecircle-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "facecircle-Bridging-Header.h"; sourceTree = "<group>"; };
 		80A5E94F1A2AB6C5001A6232 /* Face.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = Face.mm; sourceTree = "<group>"; };
 		80C4470D1A5120E00014AB25 /* lbpcascade_frontalface.xml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = lbpcascade_frontalface.xml; sourceTree = "<group>"; };
+		80C4470F1A68EF7A0014AB25 /* opencv2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = opencv2.framework; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,7 +52,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				80A5E94D1A299989001A6232 /* opencv2.framework in Frameworks */,
+				80C447101A68EF7A0014AB25 /* opencv2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -70,7 +70,7 @@
 			isa = PBXGroup;
 			children = (
 				80C4470D1A5120E00014AB25 /* lbpcascade_frontalface.xml */,
-				80A5E94C1A299989001A6232 /* opencv2.framework */,
+				80C4470F1A68EF7A0014AB25 /* opencv2.framework */,
 				804C029F1A27FEA400589100 /* facecircle */,
 				804C02B81A27FEA400589100 /* facecircleTests */,
 				804C029E1A27FEA400589100 /* Products */,

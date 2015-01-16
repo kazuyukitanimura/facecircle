@@ -75,7 +75,7 @@
   return self;
 }
 
-- (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toGrayscaleMat:(cv::Mat &)mat
+- (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toYMat:(cv::Mat &)mat toUMat:(cv::Mat &)uMat toVMat:(cv::Mat &)vMat
 {
   // http://mkonrad.net/2014/06/24/cvvideocamera-vs-native-ios-camera-apis.html
   CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
@@ -100,13 +100,17 @@
   // http://stackoverflow.com/questions/8476821/repeated-scene-items-in-ios-yuv-video-capturing-output
   // http://msdn.microsoft.com/en-us/library/windows/desktop/dd206750(v=vs.85).aspx
   mat.create(h, w, CV_8UC1);
+  uMat.create(h >> 1, w >> 1, CV_8UC1);
+  vMat.create(h >> 1, w >> 1, CV_8UC1);
   for (uint32_t i = 0; i < h; i++) {
     for (uint32_t j = 0; j < w; j++) {
-      uint32_t t = (i >> 1) * w + (j & -2); // TODO upconvert
-      uint32_t y = yDataAddress[i * w + j]; // 16 - 235
-      uint32_t u = uvDataAddress[t]; // 16 -240
-      uint32_t v = uvDataAddress[t + 1]; // 16 -240
-      mat.data[(i + 1) * w - j - 1] = y;
+      mat.data[(i + 1) * w - j - 1] = yDataAddress[i * w + j]; // 16 - 235;
+      if (i & j & 1) {
+        uint32_t d = ((i >> 1) + 1) * (w >> 1) - (j >> 1) - 1;
+        uint32_t t = (i >> 1) * (w >> 1) + (j & -2);
+        uMat.data[d] = uvDataAddress[t]; // 16 -240
+        vMat.data[d] = uvDataAddress[t + 1]; // 16 -240
+      }
     }
   }
 
@@ -273,11 +277,12 @@ void unsharpMask(cv::Mat& im)
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer camera:(AVCaptureDevice*)device orientation:(UIInterfaceOrientation)orientation
 {
   // create grayscale TODO: is it possible to process only updated pixels not the entire image?
-  cv::Mat mat;
-  [self convertYUVSampleBuffer:sampleBuffer toGrayscaleMat:mat];
+  cv::Mat mat, uMat, vMat;
+  [self convertYUVSampleBuffer:sampleBuffer toYMat:mat toUMat:uMat toVMat:vMat];
 
   cv::Mat tmpMat = mat;
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
+  cv::Rect halfRoi = cv::Rect(0, 0, mat.cols >> 1, mat.rows >> 1);
 
   if (!(interleave++ & 0x03)) {
     // detect faces
@@ -323,6 +328,15 @@ void unsharpMask(cv::Mat& im)
   roi.width = MAX(MIN(estimated.at<float>(2), mat.cols - roi.x), 1);
   roi.height = MAX(MIN(estimated.at<float>(3), mat.rows - roi.y), 1);
   tmpMat = mat(roi);
+  halfRoi.x = roi.x >> 1;
+  halfRoi.y = roi.y >> 1;
+  halfRoi.width = roi.width >> 1;
+  halfRoi.height = roi.height >> 1;
+  if (halfRoi.size().area() == 0) {
+    return nil;
+  }
+  cv::resize(uMat(halfRoi), uMat, tmpMat.size(), cv::INTER_LANCZOS4);
+  cv::resize(vMat(halfRoi), vMat, tmpMat.size(), cv::INTER_LANCZOS4);
 
   // Exposure settings
   // TODO change this to observer for device.adjustingExposure
@@ -418,6 +432,19 @@ void unsharpMask(cv::Mat& im)
 
   // flip the preview
   //cv::flip(tmpMat2, mat, 1);
+
+  cv::cvtColor(tmpMat2, tmpMat2, CV_GRAY2RGB);
+  cv::cvtColor(tmpMat3, tmpMat3, CV_GRAY2RGB);
+  for (uint32_t y = 0; y < tmpMat2.rows; y++) {
+    for (uint32_t x = 0; x < tmpMat2.cols; x++) {
+      ushort c = tmpMat2.at<cv::Vec3b>(y, x)[0];// - 16;
+      ushort d = uMat.at<uchar>(y, x) - 128;
+      ushort e = vMat.at<uchar>(y, x) - 128;
+      tmpMat2.at<cv::Vec3b>(y, x)[0] = (( 298 * c           + 409 * e + 128) >> 8); // R
+      tmpMat2.at<cv::Vec3b>(y, x)[1] = (( 298 * c - 100 * d - 208 * e + 128) >> 8); // G
+      tmpMat2.at<cv::Vec3b>(y, x)[2] = (( 298 * c + 516 * d           + 128) >> 8); // B
+    }
+  }
 
   [self tilt:tmpMat2 toMat:tmpMat3 orientation:orientation];
 
