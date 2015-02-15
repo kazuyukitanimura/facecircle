@@ -75,7 +75,7 @@
   return self;
 }
 
-- (void)convertYUVSampleBuffer:(CMSampleBufferRef)sampleBuffer toYMat:(cv::Mat &)mat toUMat:(cv::Mat &)uMat toVMat:(cv::Mat &)vMat
+- (void)convertSampleBuffer:(CMSampleBufferRef)sampleBuffer toMat:(cv::Mat &)mat
 {
   // http://mkonrad.net/2014/06/24/cvvideocamera-vs-native-ios-camera-apis.html
   CVImageBufferRef imageBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
@@ -84,35 +84,13 @@
   CVPixelBufferLockBaseAddress(imageBuffer, 0);
 
   // get the address to the image data
-  uint8_t *yDataAddress = (uint8_t *) CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 0);
-  uint8_t *uvDataAddress = (uint8_t *) CVPixelBufferGetBaseAddressOfPlane(imageBuffer, 1);
+  void *dataAddress = CVPixelBufferGetBaseAddress(imageBuffer);
 
   // get image properties
   int w = (int)CVPixelBufferGetWidth(imageBuffer);
   int h = (int)CVPixelBufferGetHeight(imageBuffer);
 
-  // create the cv mat
-  // 8 bit unsigned chars for grayscale data
-  // the first plane contains the grayscale data
-  // therefore we use <imgBufAddr> as source
-  // http://en.wikipedia.org/wiki/YUV
-  // http://kentaroid.com/kcvpixelformattype%E3%81%AB%E3%81%A4%E3%81%84%E3%81%A6%E3%81%AE%E8%80%83%E5%AF%9F/
-  // http://stackoverflow.com/questions/8476821/repeated-scene-items-in-ios-yuv-video-capturing-output
-  // http://msdn.microsoft.com/en-us/library/windows/desktop/dd206750(v=vs.85).aspx
-  mat.create(h, w, CV_8UC1);
-  uMat.create(h >> 1, w >> 1, CV_8UC1);
-  vMat.create(h >> 1, w >> 1, CV_8UC1);
-  for (uint32_t i = 0; i < h; i++) {
-    for (uint32_t j = 0; j < w; j++) {
-      mat.data[(i + 1) * w - j - 1] = yDataAddress[i * w + j]; // 16 - 235;
-      if (i & j & 1) {
-        uint32_t d = ((i >> 1) + 1) * (w >> 1) - (j >> 1) - 1;
-        uint32_t t = (i >> 1) * (w >> 1) + (j & -2);
-        uMat.data[d] = uvDataAddress[t]; // 16 -240
-        vMat.data[d] = uvDataAddress[t + 1]; // 16 -240
-      }
-    }
-  }
+  mat = cv::Mat(h, w, CV_8UC4, dataAddress, CVPixelBufferGetBytesPerRow(imageBuffer));
 
   // unlock again
   CVPixelBufferUnlockBaseAddress(imageBuffer, 0);
@@ -277,17 +255,17 @@ void unsharpMask(cv::Mat& im)
 - (UIImage *)processFace:(CMSampleBufferRef)sampleBuffer camera:(AVCaptureDevice*)device orientation:(UIInterfaceOrientation)orientation
 {
   // create grayscale TODO: is it possible to process only updated pixels not the entire image?
-  cv::Mat mat, uMat, vMat;
-  [self convertYUVSampleBuffer:sampleBuffer toYMat:mat toUMat:uMat toVMat:vMat];
+  cv::Mat mat, greyMat;
+  [self convertSampleBuffer:sampleBuffer toMat:mat];
+  cv::cvtColor(mat, greyMat, CV_BGR2GRAY);
 
-  cv::Mat tmpMat = mat;
+  cv::Mat tmpMat = greyMat;
   cv::Rect roi = cv::Rect(0, 0, mat.cols, mat.rows);
-  cv::Rect halfRoi = cv::Rect(0, 0, mat.cols >> 1, mat.rows >> 1);
 
   if (!(interleave++ & 0x03)) {
     // detect faces
     std::vector<cv::Rect> faces;
-    cascade.detectMultiScale(mat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
+    cascade.detectMultiScale(greyMat, faces, 1.1, 2, CV_HAAR_DO_CANNY_PRUNING | CV_HAAR_DO_ROUGH_SEARCH | CV_HAAR_FIND_BIGGEST_OBJECT, cv::Size(40, 40));
 
     if (faces.size()) {
       face = faces[0];
@@ -320,6 +298,7 @@ void unsharpMask(cv::Mat& im)
 
   // vertical shift
   [self shiftImage:mat x:0 y:estimated.at<float>(4)];
+  [self shiftImage:greyMat x:0 y:estimated.at<float>(4)];
 
   // crop
   // http://www.plosone.org/article/info%3Adoi%2F10.1371%2Fjournal.pone.0093369
@@ -327,16 +306,7 @@ void unsharpMask(cv::Mat& im)
   roi.y = MAX(estimated.at<float>(1), 0);
   roi.width = MAX(MIN(estimated.at<float>(2), mat.cols - roi.x), 1);
   roi.height = MAX(MIN(estimated.at<float>(3), mat.rows - roi.y), 1);
-  tmpMat = mat(roi);
-  halfRoi.x = roi.x >> 1;
-  halfRoi.y = roi.y >> 1;
-  halfRoi.width = roi.width >> 1;
-  halfRoi.height = roi.height >> 1;
-  if (halfRoi.size().area() == 0) {
-    return nil;
-  }
-  cv::resize(uMat(halfRoi), uMat, tmpMat.size(), cv::INTER_LANCZOS4);
-  cv::resize(vMat(halfRoi), vMat, tmpMat.size(), cv::INTER_LANCZOS4);
+  tmpMat = greyMat(roi);
 
   // Exposure settings
   // TODO change this to observer for device.adjustingExposure
@@ -418,7 +388,6 @@ void unsharpMask(cv::Mat& im)
   drawContours(tmpMat2, contours, -1, cv::Scalar(128, 128, 128), CV_FILLED);
   cv::compare(tmpMat2, cv::Scalar(128, 128, 128), tmpMat3, cv::CMP_EQ);
   cv::morphologyEx(tmpMat3, tmpMat3, cv::MORPH_CLOSE, element);
-  tmpMat2.setTo(cv::Scalar(255, 255, 255));
 
   // stabilize the mask
   cv::resize(previousMask, previousMask, tmpMat3.size(), cv::INTER_LANCZOS4);
@@ -428,27 +397,17 @@ void unsharpMask(cv::Mat& im)
   cv::dilate(tmpMat3, tmpMat3, cv::Mat()); // make the mask slightly larger
 
   // apply the mask
-  tmpMat.copyTo(tmpMat2, tmpMat3);
+  cv::cvtColor(tmpMat2, tmpMat2, CV_GRAY2BGRA);
+  tmpMat2.setTo(cv::Scalar(255, 255, 255));
+  mat(roi).copyTo(tmpMat2, tmpMat3);
 
   // flip the preview
-  //cv::flip(tmpMat2, mat, 1);
+  cv::flip(tmpMat2, tmpMat, 1);
 
-  cv::cvtColor(tmpMat2, tmpMat2, CV_GRAY2RGB);
-  cv::cvtColor(tmpMat3, tmpMat3, CV_GRAY2RGB);
-  for (uint32_t y = 0; y < tmpMat2.rows; y++) {
-    for (uint32_t x = 0; x < tmpMat2.cols; x++) {
-      ushort c = tmpMat2.at<cv::Vec3b>(y, x)[0];// - 16;
-      ushort d = uMat.at<uchar>(y, x) - 128;
-      ushort e = vMat.at<uchar>(y, x) - 128;
-      tmpMat2.at<cv::Vec3b>(y, x)[0] = (( 298 * c           + 409 * e + 128) >> 8); // R
-      tmpMat2.at<cv::Vec3b>(y, x)[1] = (( 298 * c - 100 * d - 208 * e + 128) >> 8); // G
-      tmpMat2.at<cv::Vec3b>(y, x)[2] = (( 298 * c + 516 * d           + 128) >> 8); // B
-    }
-  }
-
-  [self tilt:tmpMat2 toMat:tmpMat3 orientation:orientation];
+  [self tilt:tmpMat toMat:tmpMat3 orientation:orientation];
 
   // convert mat to UIImage TODO: create my own MatToUIImage and add color
+  cv::cvtColor(tmpMat3, tmpMat3, CV_BGR2RGB);
   return MatToUIImage(tmpMat3);
 }
 

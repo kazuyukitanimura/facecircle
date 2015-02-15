@@ -77,7 +77,7 @@ class ViewController: UIViewController, AVCaptureVideoDataOutputSampleBufferDele
     captureSession.addInput(audioInput)
 
     // set video data output
-    videoDataOutput.videoSettings = [ kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange ]
+    videoDataOutput.videoSettings = [kCVPixelBufferPixelFormatTypeKey: kCVPixelFormatType_32BGRA]
     // ignore delayed frames
     videoDataOutput.alwaysDiscardsLateVideoFrames = true
     // set up delegate
